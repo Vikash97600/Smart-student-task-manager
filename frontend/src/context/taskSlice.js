@@ -1,11 +1,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../services/api';
+import api, { cognitiveLoadService } from '../services/api';
 
 const initialState = {
   tasks: [],
   loading: false,
   error: null,
   stats: null,
+};
+
+// Helper to map task priority to difficulty (1=Low, 2=Medium, 3=High)
+const getDifficultyFromPriority = (priority) => {
+  switch (priority) {
+    case 'High': return 3;
+    case 'Medium': return 2;
+    case 'Low': return 1;
+    default: return 2;
+  }
 };
 
 // Async thunks
@@ -38,7 +48,24 @@ export const createTask = createAsyncThunk(
   async (taskData, { rejectWithValue }) => {
     try {
       const response = await api.post('/tasks', taskData);
-      return response.data.data;
+      const newTask = response.data.data;
+      
+      // Log activity for cognitive load tracking
+      // Use expectedDuration based on priority (default: 30 min for Medium)
+      const expectedDuration = taskData.priority === 'High' ? 20 : taskData.priority === 'Low' ? 60 : 30;
+      try {
+        await cognitiveLoadService.logActivity({
+          taskId: newTask._id,
+          difficulty: getDifficultyFromPriority(taskData.priority),
+          switches: 0,
+          expectedDuration,
+        });
+      } catch (activityError) {
+        // Don't fail task creation if activity logging fails
+        console.error('Activity logging error:', activityError);
+      }
+      
+      return newTask;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create task');
     }
@@ -50,7 +77,30 @@ export const updateTaskAsync = createAsyncThunk(
   async ({ id, taskData }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/tasks/${id}`, taskData);
-      return response.data.data;
+      const updatedTask = response.data.data;
+      
+      // If task is completed, log activity completion for cognitive load
+      if (taskData.status === 'Completed') {
+        try {
+          // Get activityId from the most recent incomplete activity for this task
+          const historyResponse = await cognitiveLoadService.getActivityHistory(24);
+          const activities = historyResponse.data?.data || [];
+          const incompleteActivity = activities.find(a => a.taskId === id && !a.completed);
+          
+          if (incompleteActivity) {
+            // Calculate actual duration
+            const actualDuration = Math.round((new Date() - new Date(incompleteActivity.createdAt)) / (1000 * 60));
+            await cognitiveLoadService.completeActivity(incompleteActivity._id, {
+              actualDuration: Math.max(1, actualDuration),
+              switches: incompleteActivity.switches || 0,
+            });
+          }
+        } catch (activityError) {
+          console.error('Activity completion error:', activityError);
+        }
+      }
+      
+      return updatedTask;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update task');
     }

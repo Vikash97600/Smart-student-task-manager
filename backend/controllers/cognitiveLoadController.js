@@ -82,6 +82,17 @@ export const calculateCognitiveLoad = async (userId) => {
     userId,
     createdAt: { $gte: oneHourAgo },
   }).sort({ createdAt: -1 });
+  
+  // Debug log
+  console.log(`[CognitiveLoad] User: ${userId}, Activities in last hour: ${recentActivities.length}`);
+  if (recentActivities.length > 0) {
+    console.log(`[CognitiveLoad] First activity:`, {
+      taskId: recentActivities[0].taskId,
+      difficulty: recentActivities[0].difficulty,
+      switches: recentActivities[0].switches,
+      completed: recentActivities[0].completed
+    });
+  }
 
   // Separate completed and incomplete activities
   const completedActivities = recentActivities.filter(a => a.completed);
@@ -98,7 +109,6 @@ export const calculateCognitiveLoad = async (userId) => {
   }
 
   // 2. Task Switches in last 30 minutes
-  // Sum switches from all activities that started in last 30 min
   const taskSwitches = recentActivities
     .filter(a => a.createdAt >= thirtyMinAgo)
     .reduce((sum, a) => sum + (a.switches || 0), 0);
@@ -114,11 +124,13 @@ export const calculateCognitiveLoad = async (userId) => {
       return sum + (a.actualDuration / a.expectedDuration);
     }, 0);
     delayFactor = totalRatio / completedWithDuration.length;
-  } else if (ongoingActivities.length > 0) {
+} else if (ongoingActivities.length > 0) {
     // If no completed tasks, use ongoing task's expected progress
     // If user has been working on current task longer than expected, indicate delay
     const ongoing = ongoingActivities[0]; // Most recent
-    const elapsed = (now - ongoing.startTime) / (1000 * 60); // minutes
+    // Use startTime if available, otherwise use createdAt
+    const startTime = ongoing.startTime || ongoing.createdAt;
+    const elapsed = (now - new Date(startTime)) / (1000 * 60); // minutes
     if (elapsed > ongoing.expectedDuration * 0.5) {
       delayFactor = Math.min(elapsed / ongoing.expectedDuration, 2.0);
     } else {
@@ -222,12 +234,13 @@ export const logActivity = async (req, res, next) => {
     // Capture current cognitive load state (without sensitivity adjustments for logging)
     const currentLoad = await calculateCognitiveLoad(userId);
 
-    const activity = await UserActivity.create({
+const activity = await UserActivity.create({
       userId,
       taskId,
       difficulty: difficulty || 2, // Default to Medium
       switches: switches || 0,
       expectedDuration: expectedDuration || 30,
+      startTime: new Date(),
       cognitiveLoadState: currentLoad.state,
     });
 
