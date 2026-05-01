@@ -8,28 +8,33 @@ import TaskFormPage from './pages/TaskFormPage';
 import CalendarPage from './pages/CalendarPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import CognitiveLoadIndicator from './components/CognitiveLoadIndicator';
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="tasks" element={<TaskListPage />} />
-        <Route path="tasks/new" element={<TaskFormPage />} />
-        <Route path="tasks/edit/:id" element={<TaskFormPage />} />
-        <Route path="calendar" element={<CalendarPage />} />
-      </Route>
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="tasks" element={<TaskListPage />} />
+          <Route path="tasks/new" element={<TaskFormPage />} />
+          <Route path="tasks/edit/:id" element={<TaskFormPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+        </Route>
+      </Routes>
+      {/* Cognitive Load Indicator - shows on all protected routes */}
+      <CognitiveLoadIndicator />
+    </>
   );
 }
 

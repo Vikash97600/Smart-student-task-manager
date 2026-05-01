@@ -112,4 +112,86 @@ export const taskService = {
   },
 };
 
+export const cognitiveLoadService = {
+  // Log new activity when starting a task
+  logActivity: async (activityData) => {
+    try {
+      const response = await api.post('/activity/log', activityData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Complete activity when finishing a task
+  completeActivity: async (activityId, data) => {
+    try {
+      const response = await api.post('/activity/complete', { activityId, ...data });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Get current cognitive load
+  getCognitiveLoad: async () => {
+    try {
+      const response = await api.get('/activity/load');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Get activity history
+  getActivityHistory: async (hours = 24) => {
+    try {
+      const response = await api.get(`/activity/history?hours=${hours}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Record a task switch
+  recordTaskSwitch: async (activityId) => {
+    try {
+      const response = await api.post('/activity/switch', { activityId });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Record user's response to suggestion
+  recordSuggestionResponse: async (actionTaken) => {
+    try {
+      const response = await api.post('/activity/response', { actionTaken });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Get user settings
+  getSettings: async () => {
+    try {
+      const response = await api.get('/activity/settings');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Update user settings
+  updateSettings: async (settingsData) => {
+    try {
+      const response = await api.put('/activity/settings', settingsData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+};
+
 export default api;
