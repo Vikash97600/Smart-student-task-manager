@@ -5,6 +5,7 @@ import { logout } from '../context/authSlice';
 import { fetchTasks, fetchStats } from '../context/taskSlice';
 import api, { authService } from '../services/api';
 import NotificationBell from './NotificationBell';
+import ProfileDropdown from './ProfileDropdown';
 
 function Layout() {
   const dispatch = useDispatch();
@@ -86,24 +87,7 @@ function Layout() {
             {/* User Menu */}
             <div className="flex items-center space-x-4">
               <NotificationBell />
-              {/* User avatar */}
-              <div className="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-full">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <span className="text-sm text-gray-300 hidden sm:block">
-                  {user?.name}
-                </span>
-              </div>
-              
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all duration-300 text-sm font-medium flex items-center space-x-1"
-              >
-                <span>🚪</span>
-                <span>Logout</span>
-              </button>
+              <ProfileDropdown />
             </div>
           </div>
         </div>

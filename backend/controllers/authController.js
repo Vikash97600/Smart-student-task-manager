@@ -30,6 +30,8 @@ export const checkAuth = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
+        lastLogin: user.lastLogin,
       },
     });
   } catch (error) {
@@ -60,6 +62,10 @@ export const registerUser = async (req, res, next) => {
       password: hashedPassword,
     });
 
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id },
@@ -84,6 +90,8 @@ export const registerUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
+        lastLogin: user.lastLogin,
       },
     });
   } catch (error) {
@@ -110,6 +118,10 @@ export const loginUser = async (req, res, next) => {
       throw new Error('Invalid email or password');
     }
 
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id },
@@ -134,6 +146,8 @@ export const loginUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
+        lastLogin: user.lastLogin,
       },
     });
   } catch (error) {

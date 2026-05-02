@@ -7,6 +7,7 @@ import TaskListPage from './pages/TaskListPage';
 import TaskFormPage from './pages/TaskFormPage';
 import CalendarPage from './pages/CalendarPage';
 import SettingsPage from './pages/SettingsPage';
+import ProfilePage from './pages/ProfilePage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -31,6 +32,7 @@ function App() {
           <Route path="tasks/edit/:id" element={<TaskFormPage />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </>

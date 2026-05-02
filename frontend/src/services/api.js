@@ -203,4 +203,39 @@ export const notificationService = {
   },
 };
 
+export const userService = {
+  getProfile: async () => {
+    try {
+      const response = await api.get('/user/profile');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  updateProfile: async (profileData) => {
+    try {
+      const response = await api.put('/user/profile', profileData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  changePassword: async (passwordData) => {
+    try {
+      const response = await api.put('/user/change-password', passwordData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  getStats: async () => {
+    try {
+      const response = await api.get('/user/stats');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+};
+
 export default api;

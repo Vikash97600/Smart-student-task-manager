@@ -1,4 +1,5 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { userService } from '../services/api';
 
 const initialState = {
   user: null,
@@ -59,6 +60,9 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.user = null;
     },
+    updateUserProfile: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
+    },
   },
 });
 
@@ -73,6 +77,7 @@ export const {
   checkAuthStart,
   checkAuthSuccess,
   checkAuthFailure,
+  updateUserProfile,
 } = authSlice.actions;
 
 export default authSlice.reducer;
