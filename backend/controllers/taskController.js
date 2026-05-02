@@ -186,6 +186,54 @@ export const restoreTask = async (req, res, next) => {
   }
 };
 
+// Permanently delete a single task
+export const permanentDeleteTask = async (req, res, next) => {
+  try {
+    const task = await Task.findOneAndDelete({ 
+      _id: req.params.id, 
+      createdBy: req.user._id, 
+      isDeleted: true 
+    });
+
+    if (!task) {
+      res.status(404);
+      throw new Error('Deleted task not found');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: task,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Permanently delete multiple tasks
+export const permanentDeleteMultipleTasks = async (req, res, next) => {
+  try {
+    const { taskIds } = req.body;
+    
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+      res.status(400);
+      throw new Error('No task IDs provided');
+    }
+
+    const result = await Task.deleteMany({
+      _id: { $in: taskIds },
+      createdBy: req.user._id,
+      isDeleted: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { deletedCount: result.deletedCount },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Get dashboard stats
 export const getDashboardStats = async (req, res, next) => {
   try {

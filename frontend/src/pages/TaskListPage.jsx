@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { fetchTasks, deleteTaskAsync, fetchStats, updateTaskAsync, fetchDeletedTasks, restoreTaskAsync } from '../context/taskSlice';
+import { fetchTasks, deleteTaskAsync, fetchStats, updateTaskAsync, fetchDeletedTasks, restoreTaskAsync, permanentDeleteTaskAsync, permanentDeleteMultipleTasksAsync } from '../context/taskSlice';
 
 function TaskListPage() {
   const dispatch = useDispatch();
@@ -14,6 +14,7 @@ function TaskListPage() {
   const [subjectFilter, setSubjectFilter] = useState('');
   const [search, setSearch] = useState('');
   const [animateIn, setAnimateIn] = useState(false);
+  const [selectedDeletedTasks, setSelectedDeletedTasks] = useState([]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -52,6 +53,47 @@ function TaskListPage() {
       dispatch(fetchStats());
     } catch (err) {
       console.error('Restore error:', err);
+    }
+  };
+
+  const handlePermanentDelete = async (id) => {
+    if (window.confirm('Are you sure you want to permanently delete this task? This action cannot be undone.')) {
+      try {
+        await dispatch(permanentDeleteTaskAsync(id));
+        dispatch(fetchStats());
+      } catch (err) {
+        console.error('Permanent delete error:', err);
+      }
+    }
+  };
+
+  const handleCheckboxChange = (taskId) => {
+    setSelectedDeletedTasks(prev => 
+      prev.includes(taskId) 
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedDeletedTasks.length === deletedTasks.length) {
+      setSelectedDeletedTasks([]);
+    } else {
+      setSelectedDeletedTasks(deletedTasks.map(task => task._id));
+    }
+  };
+
+  const handleBulkPermanentDelete = async () => {
+    if (selectedDeletedTasks.length === 0) return;
+    
+    if (window.confirm(`Are you sure you want to permanently delete ${selectedDeletedTasks.length} task(s)? This action cannot be undone.`)) {
+      try {
+        await dispatch(permanentDeleteMultipleTasksAsync(selectedDeletedTasks));
+        setSelectedDeletedTasks([]);
+        dispatch(fetchStats());
+      } catch (err) {
+        console.error('Bulk permanent delete error:', err);
+      }
     }
   };
 
@@ -262,6 +304,28 @@ function TaskListPage() {
               {deletedTasks.length} {deletedTasks.length === 1 ? 'task' : 'tasks'} in recently deleted
             </p>
           </div>
+          {deletedTasks.length > 0 && (
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={selectedDeletedTasks.length === deletedTasks.length && deletedTasks.length > 0}
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                Select All
+              </label>
+              {selectedDeletedTasks.length > 0 && (
+                <button
+                  onClick={handleBulkPermanentDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-full text-sm font-semibold hover:bg-red-700 transition flex items-center gap-2"
+                >
+                  <span>🗑️</span>
+                  <span>Delete Selected ({selectedDeletedTasks.length})</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {deletedTasks.length === 0 ? (
@@ -273,26 +337,41 @@ function TaskListPage() {
             {deletedTasks.map((task) => (
               <div key={task._id} className="rounded-3xl border border-gray-200 p-4 bg-gray-50">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{task.title}</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Deleted at {new Date(task.deletedAt).toLocaleString()}
-                    </div>
-                    <div className="mt-2 text-sm text-gray-600">
-                      <span className="mr-2">📚 {task.subject}</span>
-                      <span className="mr-2">📅 {new Date(task.dueDate).toLocaleDateString()}</span>
-                      <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
-                        {task.priority}
-                      </span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedDeletedTasks.includes(task._id)}
+                      onChange={() => handleCheckboxChange(task._id)}
+                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{task.title}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Deleted at {new Date(task.deletedAt).toLocaleString()}
+                      </div>
+                      <div className="mt-2 text-sm text-gray-600">
+                        <span className="mr-2">📚 {task.subject}</span>
+                        <span className="mr-2">📅 {new Date(task.dueDate).toLocaleDateString()}</span>
+                        <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
+                          {task.priority}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleRestore(task._id)}
                       className="px-4 py-2 rounded-full bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition"
                     >
                       Restore
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePermanentDelete(task._id)}
+                      className="px-4 py-2 rounded-full bg-red-100 text-red-600 text-sm font-semibold hover:bg-red-200 transition"
+                    >
+                      Delete Permanently
                     </button>
                   </div>
                 </div>

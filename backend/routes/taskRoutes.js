@@ -9,11 +9,13 @@ import {
   getDeletedTasks,
   restoreTask,
   getDashboardStats,
+  permanentDeleteTask,
+  permanentDeleteMultipleTasks,
 } from '../controllers/taskController.js';
 
 const router = express.Router();
 
-// All routes below require authentication
+// All routes require authentication
 router.use(protect);
 
 router.route('/')
@@ -22,6 +24,8 @@ router.route('/')
 
 router.get('/deleted', getDeletedTasks);
 router.route('/:id/restore').put(restoreTask);
+router.route('/:id/permanent-delete').delete(permanentDeleteTask);
+router.route('/permanent-delete-multiple').delete(permanentDeleteMultipleTasks);
 
 router.route('/:id')
   .get(getTask)

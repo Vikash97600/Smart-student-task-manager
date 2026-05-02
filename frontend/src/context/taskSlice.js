@@ -118,6 +118,30 @@ export const fetchTaskById = createAsyncThunk(
   }
 );
 
+export const permanentDeleteTaskAsync = createAsyncThunk(
+  'tasks/permanentDeleteTask',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`/tasks/${id}/permanent-delete`);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to permanently delete task');
+    }
+  }
+);
+
+export const permanentDeleteMultipleTasksAsync = createAsyncThunk(
+  'tasks/permanentDeleteMultipleTasks',
+  async (taskIds, { rejectWithValue }) => {
+    try {
+      const response = await api.delete('/tasks/permanent-delete-multiple', { data: { taskIds } });
+      return { taskIds, deletedCount: response.data.data.deletedCount };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to permanently delete tasks');
+    }
+  }
+);
+
 const taskSlice = createSlice({
   name: 'tasks',
   initialState,
@@ -239,6 +263,32 @@ const taskSlice = createSlice({
         }
       })
       .addCase(fetchTaskById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Permanent Delete Single Task
+      .addCase(permanentDeleteTaskAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(permanentDeleteTaskAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.deletedTasks = state.deletedTasks.filter((task) => task._id !== action.payload._id);
+      })
+      .addCase(permanentDeleteTaskAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Permanent Delete Multiple Tasks
+      .addCase(permanentDeleteMultipleTasksAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(permanentDeleteMultipleTasksAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.deletedTasks = state.deletedTasks.filter((task) => !action.payload.taskIds.includes(task._id));
+      })
+      .addCase(permanentDeleteMultipleTasksAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
