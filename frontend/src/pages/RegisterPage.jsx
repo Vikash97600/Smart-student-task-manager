@@ -37,15 +37,16 @@ function RegisterPage() {
         email,
         password,
       });
-      
-      if (response.data.success) {
-        dispatch(registerSuccess(response.data.data));
+      const result = response.data;
+
+      if (result?.success) {
+        dispatch(registerSuccess(result.data));
         navigate('/dashboard');
       } else {
-        dispatch(registerFailure(response.data.message || 'Registration failed'));
+        dispatch(registerFailure(result?.message || 'Registration failed'));
       }
     } catch (err) {
-      dispatch(registerFailure(err.response?.data?.message || 'Registration failed'));
+      dispatch(registerFailure(err.response?.data?.message || err.message || 'Registration failed'));
     } finally {
       setLoadingState(false);
     }

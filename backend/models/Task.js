@@ -32,6 +32,14 @@ const taskSchema = new mongoose.Schema(
       enum: ['Pending', 'Completed'],
       default: 'Pending',
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -47,6 +55,7 @@ const taskSchema = new mongoose.Schema(
 taskSchema.index({ createdBy: 1, status: 1 });
 taskSchema.index({ createdBy: 1, dueDate: 1 });
 taskSchema.index({ createdBy: 1, subject: 1 });
+taskSchema.index({ createdBy: 1, isDeleted: 1 });
 
 const Task = mongoose.model('Task', taskSchema);
 

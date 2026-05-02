@@ -4,6 +4,7 @@ import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { logout } from '../context/authSlice';
 import { fetchTasks, fetchStats } from '../context/taskSlice';
 import api, { authService } from '../services/api';
+import NotificationBell from './NotificationBell';
 
 function Layout() {
   const dispatch = useDispatch();
@@ -32,6 +33,7 @@ function Layout() {
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/tasks', label: 'Tasks', icon: '📋' },
     { path: '/calendar', label: 'Calendar', icon: '📅' },
+    { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
   if (!isAuthenticated) {
@@ -41,7 +43,7 @@ function Layout() {
   return (
     <div className="min-h-screen">
       {/* Enhanced Navbar */}
-      <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-2xl relative overflow-hidden">
+      <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-2xl relative overflow-visible">
         {/* Animated background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -83,6 +85,7 @@ function Layout() {
 
             {/* User Menu */}
             <div className="flex items-center space-x-4">
+              <NotificationBell />
               {/* User avatar */}
               <div className="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-full">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">

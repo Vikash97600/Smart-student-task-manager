@@ -5,7 +5,10 @@ import { Provider, useDispatch } from 'react-redux';
 import App from './App';
 import store from './context/store';
 import { checkAuthStart, checkAuthSuccess, checkAuthFailure } from './context/authSlice';
+import { fetchSettings } from './context/settingsSlice';
 import { authService } from './services/api';
+import SettingsProvider from './context/SettingsProvider';
+import ErrorBoundary from './components/ErrorBoundary';
 import './styles/index.css';
 
 const AuthInitializer = ({ children }) => {
@@ -18,6 +21,8 @@ const AuthInitializer = ({ children }) => {
         const response = await authService.checkAuth();
         if (response && response.success) {
           dispatch(checkAuthSuccess(response.data));
+          // Fetch user settings after successful auth
+          dispatch(fetchSettings());
         } else {
           dispatch(checkAuthFailure());
         }
@@ -32,12 +37,21 @@ const AuthInitializer = ({ children }) => {
   return children;
 };
 
+const SettingsInitializer = ({ children }) => {
+  
+  return children;
+};
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Provider store={store}>
       <BrowserRouter>
         <AuthInitializer>
-          <App />
+          <SettingsProvider>
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
+          </SettingsProvider>
         </AuthInitializer>
       </BrowserRouter>
     </Provider>

@@ -1,8 +1,9 @@
 import Task from '../models/Task.js';
+import Notification from '../models/Notification.js';
 
 // Helper function for streak calculation (simplified)
 const calculateStreak = async (userId) => {
-  const tasks = await Task.find({ createdBy: userId, status: 'Completed' })
+  const tasks = await Task.find({ createdBy: userId, status: 'Completed', isDeleted: false })
     .sort({ updatedAt: -1 })
     .limit(10);
   
@@ -26,7 +27,7 @@ const calculateStreak = async (userId) => {
 // Get all tasks for logged in user
 export const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find({ createdBy: req.user._id }).sort({ dueDate: 1 });
+    const tasks = await Task.find({ createdBy: req.user._id, isDeleted: false }).sort({ dueDate: 1 });
     res.status(200).json({
       success: true,
       count: tasks.length,
@@ -40,12 +41,27 @@ export const getTasks = async (req, res) => {
   }
 };
 
+// Get deleted tasks for logged in user
+export const getDeletedTasks = async (req, res, next) => {
+  try {
+    const tasks = await Task.find({ createdBy: req.user._id, isDeleted: true }).sort({ deletedAt: -1 });
+    res.status(200).json({
+      success: true,
+      count: tasks.length,
+      data: tasks,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Get single task
 export const getTask = async (req, res, next) => {
   try {
     const task = await Task.findOne({
       _id: req.params.id,
       createdBy: req.user._id,
+      isDeleted: false,
     });
 
     if (!task) {
@@ -89,10 +105,49 @@ export const createTask = async (req, res, next) => {
 // Update task
 export const updateTask = async (req, res, next) => {
   try {
-    const task = await Task.findOneAndUpdate(
-      { _id: req.params.id, createdBy: req.user._id },
+    const task = await Task.findOne({ _id: req.params.id, createdBy: req.user._id, isDeleted: false });
+    if (!task) {
+      res.status(404);
+      throw new Error('Task not found');
+    }
+
+    const previousStatus = task.status;
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: req.params.id, createdBy: req.user._id, isDeleted: false },
       req.body,
       { new: true, runValidators: true }
+    );
+
+    if (updatedTask && previousStatus !== updatedTask.status) {
+      const message =
+        updatedTask.status === 'Completed'
+          ? `Great job! Task "${updatedTask.title}" has been marked completed.`
+          : `Task "${updatedTask.title}" status changed to ${updatedTask.status}.`;
+
+      await Notification.create({
+        userId: req.user._id,
+        message,
+        type: 'follow_up',
+        metadata: { taskId: updatedTask._id.toString(), previousStatus, newStatus: updatedTask.status },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedTask,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Delete task (soft delete)
+export const deleteTask = async (req, res, next) => {
+  try {
+    const task = await Task.findOneAndUpdate(
+      { _id: req.params.id, createdBy: req.user._id, isDeleted: false },
+      { isDeleted: true, deletedAt: new Date() },
+      { new: true }
     );
 
     if (!task) {
@@ -109,22 +164,22 @@ export const updateTask = async (req, res, next) => {
   }
 };
 
-// Delete task
-export const deleteTask = async (req, res, next) => {
+// Restore a deleted task
+export const restoreTask = async (req, res, next) => {
   try {
-    const task = await Task.findOneAndDelete({
-      _id: req.params.id,
-      createdBy: req.user._id,
-    });
-
+    const task = await Task.findOne({ _id: req.params.id, createdBy: req.user._id, isDeleted: true });
     if (!task) {
       res.status(404);
-      throw new Error('Task not found');
+      throw new Error('Deleted task not found');
     }
+
+    task.isDeleted = false;
+    task.deletedAt = null;
+    await task.save();
 
     res.status(200).json({
       success: true,
-      data: {},
+      data: task,
     });
   } catch (error) {
     next(error);
@@ -140,12 +195,13 @@ export const getDashboardStats = async (req, res, next) => {
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const totalTasks = await Task.countDocuments({ createdBy: userId });
-    const completedTasks = await Task.countDocuments({ createdBy: userId, status: 'Completed' });
-    const pendingTasks = await Task.countDocuments({ createdBy: userId, status: 'Pending' });
+    const totalTasks = await Task.countDocuments({ createdBy: userId, isDeleted: false });
+    const completedTasks = await Task.countDocuments({ createdBy: userId, status: 'Completed', isDeleted: false });
+    const pendingTasks = await Task.countDocuments({ createdBy: userId, status: 'Pending', isDeleted: false });
     const overdueTasks = await Task.countDocuments({
       createdBy: userId,
       status: 'Pending',
+      isDeleted: false,
       dueDate: { $lt: today },
     });
 

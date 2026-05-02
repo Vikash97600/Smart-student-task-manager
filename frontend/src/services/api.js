@@ -8,6 +8,18 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Request interceptor - helpful for debugging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
+    return config;
+  },
+  (error) => {
+    console.error('[API] Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
 // Response interceptor
 api.interceptors.response.use(
   (response) => response,
@@ -112,81 +124,78 @@ export const taskService = {
   },
 };
 
-export const cognitiveLoadService = {
-  // Log new activity when starting a task
-  logActivity: async (activityData) => {
+export const settingsService = {
+  // Get all user settings (full nested object)
+  getAllSettings: async () => {
     try {
-      const response = await api.post('/activity/log', activityData);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-  
-  // Complete activity when finishing a task
-  completeActivity: async (activityId, data) => {
-    try {
-      const response = await api.post('/activity/complete', { activityId, ...data });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-  
-  // Get current cognitive load
-  getCognitiveLoad: async () => {
-    try {
-      const response = await api.get('/activity/load');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-  
-  // Get activity history
-  getActivityHistory: async (hours = 24) => {
-    try {
-      const response = await api.get(`/activity/history?hours=${hours}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-  
-  // Record a task switch
-  recordTaskSwitch: async (activityId) => {
-    try {
-      const response = await api.post('/activity/switch', { activityId });
+      const response = await api.get('/settings');
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  // Record user's response to suggestion
-  recordSuggestionResponse: async (actionTaken) => {
+  // Get flattened settings summary for UI components
+  getSummary: async () => {
     try {
-      const response = await api.post('/activity/response', { actionTaken });
+      const response = await api.get('/settings/summary');
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  // Get user settings
-  getSettings: async () => {
+  // Update user settings (supports nested updates)
+  update: async (settingsData) => {
     try {
-      const response = await api.get('/activity/settings');
+      const response = await api.put('/settings', settingsData);
       return response.data;
     } catch (error) {
       throw error;
     }
   },
 
-  // Update user settings
-  updateSettings: async (settingsData) => {
+  // Update specific nested field
+  updateField: async (category, field, value) => {
     try {
-      const response = await api.put('/activity/settings', settingsData);
+      const response = await api.put('/settings', { [`${category}.${field}`]: value });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Reset all settings to defaults
+  reset: async () => {
+    try {
+      const response = await api.delete('/settings/reset');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+};
+
+export const notificationService = {
+  getAll: async () => {
+    try {
+      const response = await api.get('/notifications');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  create: async (payload) => {
+    try {
+      const response = await api.post('/notifications', payload);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  markRead: async (id) => {
+    try {
+      const response = await api.put(`/notifications/${id}/read`);
       return response.data;
     } catch (error) {
       throw error;

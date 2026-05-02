@@ -1,8 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api, { cognitiveLoadService } from '../services/api';
+import api from '../services/api';
 
 const initialState = {
   tasks: [],
+  deletedTasks: [],
   loading: false,
   error: null,
   stats: null,
@@ -49,22 +50,6 @@ export const createTask = createAsyncThunk(
     try {
       const response = await api.post('/tasks', taskData);
       const newTask = response.data.data;
-      
-      // Log activity for cognitive load tracking
-      // Use expectedDuration based on priority (default: 30 min for Medium)
-      const expectedDuration = taskData.priority === 'High' ? 20 : taskData.priority === 'Low' ? 60 : 30;
-      try {
-        await cognitiveLoadService.logActivity({
-          taskId: newTask._id,
-          difficulty: getDifficultyFromPriority(taskData.priority),
-          switches: 0,
-          expectedDuration,
-        });
-      } catch (activityError) {
-        // Don't fail task creation if activity logging fails
-        console.error('Activity logging error:', activityError);
-      }
-      
       return newTask;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create task');
@@ -78,28 +63,6 @@ export const updateTaskAsync = createAsyncThunk(
     try {
       const response = await api.put(`/tasks/${id}`, taskData);
       const updatedTask = response.data.data;
-      
-      // If task is completed, log activity completion for cognitive load
-      if (taskData.status === 'Completed') {
-        try {
-          // Get activityId from the most recent incomplete activity for this task
-          const historyResponse = await cognitiveLoadService.getActivityHistory(24);
-          const activities = historyResponse.data?.data || [];
-          const incompleteActivity = activities.find(a => a.taskId === id && !a.completed);
-          
-          if (incompleteActivity) {
-            // Calculate actual duration
-            const actualDuration = Math.round((new Date() - new Date(incompleteActivity.createdAt)) / (1000 * 60));
-            await cognitiveLoadService.completeActivity(incompleteActivity._id, {
-              actualDuration: Math.max(1, actualDuration),
-              switches: incompleteActivity.switches || 0,
-            });
-          }
-        } catch (activityError) {
-          console.error('Activity completion error:', activityError);
-        }
-      }
-      
       return updatedTask;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update task');
@@ -111,10 +74,34 @@ export const deleteTaskAsync = createAsyncThunk(
   'tasks/deleteTask',
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/tasks/${id}`);
-      return id;
+      const response = await api.delete(`/tasks/${id}`);
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete task');
+    }
+  }
+);
+
+export const fetchDeletedTasks = createAsyncThunk(
+  'tasks/fetchDeletedTasks',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/tasks/deleted');
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch deleted tasks');
+    }
+  }
+);
+
+export const restoreTaskAsync = createAsyncThunk(
+  'tasks/restoreTask',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/tasks/${id}/restore`);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to restore task');
     }
   }
 );
@@ -205,9 +192,36 @@ const taskSlice = createSlice({
       })
       .addCase(deleteTaskAsync.fulfilled, (state, action) => {
         state.loading = false;
-        state.tasks = state.tasks.filter((task) => task._id !== action.payload);
+        state.tasks = state.tasks.filter((task) => task._id !== action.payload._id);
+        state.deletedTasks.unshift(action.payload);
       })
       .addCase(deleteTaskAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(fetchDeletedTasks.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDeletedTasks.fulfilled, (state, action) => {
+        state.loading = false;
+        state.deletedTasks = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchDeletedTasks.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(restoreTaskAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(restoreTaskAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.tasks.unshift(action.payload);
+        state.deletedTasks = state.deletedTasks.filter((task) => task._id !== action.payload._id);
+      })
+      .addCase(restoreTaskAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

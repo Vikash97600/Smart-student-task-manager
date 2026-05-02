@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* ===== CSS Custom Properties (Theming) ===== */
+:root {
+  /* Blue (default) */
+  --color-primary: #3b82f6;
+  --color-primary-ring: #2563eb;
+  --color-primary-light: #dbeafe;
+  
+  /* Green variant */
+  --color-green-primary: #10b981;
+  --color-green-ring: #059669;
+  --color-green-light: #d1fae5;
+  
+  /* Purple variant */
+  --color-purple-primary: #8b5cf6;
+  --color-purple-ring: #7c3aed;
+  --color-purple-light: #ede9fe;
+  
+  /* Rose variant */
+  --color-rose-primary: #f43f5e;
+  --color-rose-ring: #e11d48;
+  --color-rose-light: #ffe4e6;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -13,7 +36,53 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* Dark theme */
+body.dark-theme {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #e2e8f0;
+}
+
+body.dark-theme .bg-white { background-color: #1e293b; }
+body.dark-theme .bg-gray-50 { background-color: #0f172a; }
+body.dark-theme .bg-gray-100 { background-color: #334155; }
+body.dark-theme text-gray-800 { color: #e2e8f0; }
+body.dark-theme text-gray-700 { color: #cbd5e1; }
+body.dark-theme text-gray-600 { color: #94a3b8; }
+body.dark-theme border-gray-200 { border-color: #334155; }
+body.dark-theme border-gray-300 { border-color: #475569; }
+
+/* Auto theme detects system preference */
+@media (prefers-color-scheme: dark) {
+  body.auto-theme {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #e2e8f0;
+  }
+}
+
+/* Compact mode */
+.compact-mode * {
+  line-height: 1.2 !important;
+}
+
+.compact-mode .p-4 { padding: 0.5rem !important; }
+.compact-mode .p-3 { padding: 0.375rem !important; }
+.compact-mode .p-2 { padding: 0.25rem !important; }
+.compact-mode .gap-6 { gap: 0.5rem !important; }
+.compact-mode .gap-4 { gap: 0.25rem !important; }
+
+/* Font size variations */
+.font-small { font-size: 0.875rem !important; }
+.font-medium { font-size: 1rem !important; }
+.font-large { font-size: 1.125rem !important; }
+
+/* Theme class for app container */
+.theme-blue { --color-primary: var(--color-primary); }
+.theme-green { --color-primary: var(--color-green-primary); }
+.theme-purple { --color-primary: var(--color-purple-primary); }
+.theme-rose { --color-primary: var(--color-rose-primary); }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',

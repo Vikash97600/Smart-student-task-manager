@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { fetchTasks, deleteTaskAsync, fetchStats, updateTaskAsync } from '../context/taskSlice';
+import { fetchTasks, deleteTaskAsync, fetchStats, updateTaskAsync, fetchDeletedTasks, restoreTaskAsync } from '../context/taskSlice';
 
 function TaskListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { tasks, loading, error } = useSelector((state) => state.tasks);
+  const { tasks, deletedTasks, loading, error } = useSelector((state) => state.tasks);
   const { isAuthenticated } = useSelector((state) => state.auth);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState('');
@@ -18,6 +18,7 @@ function TaskListPage() {
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchTasks());
+      dispatch(fetchDeletedTasks());
       dispatch(fetchStats());
     }
     // Trigger animation after mount
@@ -42,6 +43,15 @@ function TaskListPage() {
       dispatch(fetchStats());
     } catch (err) {
       console.error('Update error:', err);
+    }
+  };
+
+  const handleRestore = async (id) => {
+    try {
+      await dispatch(restoreTaskAsync(id));
+      dispatch(fetchStats());
+    } catch (err) {
+      console.error('Restore error:', err);
     }
   };
 
@@ -241,6 +251,54 @@ function TaskListPage() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      <div className="mt-10 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-800">Recently Deleted</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {deletedTasks.length} {deletedTasks.length === 1 ? 'task' : 'tasks'} in recently deleted
+            </p>
+          </div>
+        </div>
+
+        {deletedTasks.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-500">
+            No recently deleted tasks yet. Deleted tasks will appear here so you can restore them.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {deletedTasks.map((task) => (
+              <div key={task._id} className="rounded-3xl border border-gray-200 p-4 bg-gray-50">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{task.title}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Deleted at {new Date(task.deletedAt).toLocaleString()}
+                    </div>
+                    <div className="mt-2 text-sm text-gray-600">
+                      <span className="mr-2">📚 {task.subject}</span>
+                      <span className="mr-2">📅 {new Date(task.dueDate).toLocaleDateString()}</span>
+                      <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
+                        {task.priority}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleRestore(task._id)}
+                      className="px-4 py-2 rounded-full bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

@@ -4,21 +4,27 @@ import UserSettings from '../models/UserSettings.js';
 /**
  * Get user's effective sensitivity multiplier
  * Combines manual setting with auto-adjustment based on recent response patterns
+ * Also considers break preferences and notification settings
  */
 const getEffectiveSensitivity = async (userId) => {
   const settings = await UserSettings.findOne({ userId });
-  let baseMultiplier = settings ? settings.cognitiveLoadSensitivity : 1.0;
+  let baseMultiplier = settings ? settings.cognitiveLoad?.sensitivity || 1.0 : 1.0;
+  console.log('[CognitiveLoad] Base sensitivity:', baseMultiplier, 'autoAdjustEnabled:', settings?.cognitiveLoad?.autoAdjustEnabled);
   
-  if (settings && settings.autoAdjustEnabled) {
+  if (settings && settings.cognitiveLoad?.autoAdjustEnabled) {
     const responsiveness = await calculateUserResponsiveness(userId);
     // Map responsiveness [0,1] to multiplier range [0.7, 1.3]
     // More responsive → less sensitive (trust user can handle load)
     // Less responsive → more sensitive (need to intervene earlier)
     const autoMultiplier = 0.7 + (responsiveness * 0.6);
-    baseMultiplier *= autoMultiplier;
+    const adjusted = baseMultiplier * autoMultiplier;
+    console.log('[CognitiveLoad] Auto-adjust responsiveness:', responsiveness, 'multiplier:', autoMultiplier, 'adjusted:', adjusted);
+    baseMultiplier = adjusted;
   }
   
-  return Math.max(0.5, Math.min(1.5, baseMultiplier));
+  const finalMultiplier = Math.max(0.5, Math.min(1.5, baseMultiplier));
+  console.log('[CognitiveLoad] Effective sensitivity:', finalMultiplier);
+  return finalMultiplier;
 };
 
 /**
@@ -30,6 +36,7 @@ const calculateUserResponsiveness = async (userId) => {
     .limit(20);
 
   if (recentActivities.length === 0) {
+    console.log('[CognitiveLoad] No recent activities for responsiveness, default to 1.0');
     return 1.0;
   }
 
@@ -38,7 +45,9 @@ const calculateUserResponsiveness = async (userId) => {
     activity.suggestionActionTaken && responsiveActions.includes(activity.suggestionActionTaken)
   ).length;
 
-  return Math.max(0, Math.min(1, responsiveCount / recentActivities.length));
+  const responsiveness = Math.max(0, Math.min(1, responsiveCount / recentActivities.length));
+  console.log('[CognitiveLoad] Responsiveness calculated:', responsiveness, 'from', responsiveCount, '/', recentActivities.length);
+  return responsiveness;
 };
 
 /**
@@ -46,15 +55,20 @@ const calculateUserResponsiveness = async (userId) => {
  */
 const getUserSensitivity = async (userId) => {
   const settings = await UserSettings.findOne({ userId });
-  if (settings && settings.autoAdjustEnabled) {
+  const baseSensitivity = settings ? (settings.cognitiveLoad?.sensitivity || 1.0) : 1.0;
+  console.log('[CognitiveLoad] getUserSensitivity base:', baseSensitivity, 'autoAdjustEnabled:', settings?.cognitiveLoad?.autoAdjustEnabled);
+  
+  if (settings && settings.cognitiveLoad?.autoAdjustEnabled) {
     // Apply auto-adjustment based on responsiveness
     const responsiveness = await calculateUserResponsiveness(userId);
     // Sensitivity multiplier: if responsive (< 1.0 means more sensitive), if unresponsive (> 1.0 means less sensitive)
     // Map responsiveness [0,1] to multiplier [0.7, 1.3]
     const autoMultiplier = 0.7 + (responsiveness * 0.6);
-    return settings.cognitiveLoadSensitivity * autoMultiplier;
+    const adjusted = baseSensitivity * autoMultiplier;
+    console.log('[CognitiveLoad] getUserSensitivity adjusted:', adjusted, 'multiplier:', autoMultiplier);
+    return adjusted;
   }
-  return settings ? settings.cognitiveLoadSensitivity : 1.0;
+  return baseSensitivity;
 };
 
 /**
@@ -64,8 +78,9 @@ const getUserSensitivity = async (userId) => {
  * 1. Hard Task Streak - consecutive hard tasks
  * 2. Task Switches - number of switches in last 30 min
  * 3. Delay Factor - ratio of actual vs expected duration
+ * 4. Work Duration - time since last break (using breakFrequency)
  *
- * Scoring: cognitiveLoadScore = (hardTaskStreak * 2) + (taskSwitches * 1.5) + (delayFactor * 2)
+ * Scoring: cognitiveLoadScore = (hardTaskStreak * 2) + (taskSwitches * 1.5) + (delayFactor * 2) + (workDurationExceeded ? 1 : 0)
  * 
  * Thresholds are adjusted by user sensitivity:
  *   NORMAL: score < 5 * sensitivity
@@ -124,7 +139,7 @@ export const calculateCognitiveLoad = async (userId) => {
       return sum + (a.actualDuration / a.expectedDuration);
     }, 0);
     delayFactor = totalRatio / completedWithDuration.length;
-} else if (ongoingActivities.length > 0) {
+  } else if (ongoingActivities.length > 0) {
     // If no completed tasks, use ongoing task's expected progress
     // If user has been working on current task longer than expected, indicate delay
     const ongoing = ongoingActivities[0]; // Most recent
@@ -140,14 +155,43 @@ export const calculateCognitiveLoad = async (userId) => {
     delayFactor = 1.0;
   }
 
+  // 4. Work Duration - has user exceeded their preferred break frequency?
+  let workDurationExceeded = false;
+  const settings = await UserSettings.findOne({ userId });
+  const breakReminderEnabled = settings?.cognitiveLoad?.enableBreakReminders ?? settings?.breakPreferences?.enableBreakReminders ?? true;
+  console.log('[CognitiveLoad] Break reminder enabled:', breakReminderEnabled, 'breakFrequency:', settings?.breakPreferences?.breakFrequency);
+
+  if (breakReminderEnabled) {
+    const breakFrequency = settings.breakPreferences?.breakFrequency || 60; // minutes
+    
+    // Check if recent continuous work exceeds break frequency
+    // Find most recent break/complete activity
+    const lastCompleteOrRecent = completedActivities[0] || ongoingActivities[0];
+    if (lastCompleteOrRecent) {
+      const lastActivityTime = new Date(lastCompleteOrRecent.createdAt);
+      const minutesSinceLastBreak = (now - lastActivityTime) / (1000 * 60);
+      workDurationExceeded = minutesSinceLastBreak >= breakFrequency;
+      console.log('[CognitiveLoad] Minutes since last break/activity:', minutesSinceLastBreak, 'workDurationExceeded:', workDurationExceeded);
+    } else {
+      // No recent activity, but still encourage break if been too long
+      // Assuming start of day or no break
+      workDurationExceeded = false; // Grace period for new sessions
+    }
+  }
+
   // Get sensitivity multiplier
   const sensitivity = await getUserSensitivity(userId);
 
   // Calculate cognitive load score
-  const cognitiveLoadScore = 
+  let cognitiveLoadScore = 
     (hardTaskStreak * 2) + 
     (taskSwitches * 1.5) + 
     (delayFactor * 2);
+
+  // Add work duration factor if exceeded break preference
+  if (workDurationExceeded) {
+    cognitiveLoadScore += 1.5;
+  }
 
   // Apply sensitivity to thresholds
   const normalThreshold = 5 * sensitivity;
@@ -162,7 +206,7 @@ export const calculateCognitiveLoad = async (userId) => {
     reasons = ['Task load is manageable'];
   } else if (cognitiveLoadScore < overloadedThreshold) {
     state = 'MODERATE';
-    suggestion = "You're doing well. Consider avoiding new hard tasks for now.";
+    suggestion = getModerateSuggestion(settings, hardTaskStreak, taskSwitches);
     reasons = [];
     
     if (hardTaskStreak >= 2) {
@@ -174,9 +218,12 @@ export const calculateCognitiveLoad = async (userId) => {
     if (delayFactor > 1.2) {
       reasons.push(`Taking longer than expected on tasks`);
     }
+    if (workDurationExceeded) {
+      reasons.push(`Working for over ${settings.breakPreferences?.breakFrequency || 60} minutes without a break`);
+    }
   } else {
     state = 'OVERLOADED';
-    suggestion = 'Take a 5-10 minute break or switch to an easy task.';
+    suggestion = getOverloadedSuggestion(settings);
     reasons = [];
     
     if (hardTaskStreak >= 3) {
@@ -188,6 +235,9 @@ export const calculateCognitiveLoad = async (userId) => {
     if (delayFactor > 1.5) {
       reasons.push(`Tasks taking significantly longer than expected`);
     }
+    if (workDurationExceeded) {
+      reasons.push(`Work session exceeded ${settings.breakPreferences?.breakFrequency || 60}-minute threshold`);
+    }
   }
 
   // Add user responsiveness note if applicable
@@ -195,6 +245,10 @@ export const calculateCognitiveLoad = async (userId) => {
   if (state === 'OVERLOADED' && responsiveness < 0.3) {
     reasons.push('You frequently ignore break suggestions');
   }
+
+  // Get notification settings for frontend consumption
+  const notificationPaused = settings?.cognitiveLoad?.notificationPaused || false;
+  const doNotDisturb = settings?.notifications?.doNotDisturb || false;
 
   return {
     score: Math.round(cognitiveLoadScore * 10) / 10,
@@ -205,10 +259,54 @@ export const calculateCognitiveLoad = async (userId) => {
       hardTaskStreak,
       taskSwitches,
       delayFactor: Math.round(delayFactor * 10) / 10,
+      workDurationExceeded,
     },
     sensitivity: Math.round(sensitivity * 10) / 10,
     responsiveness: Math.round(responsiveness * 10) / 10,
+    notificationPaused,
+    doNotDisturb,
+    breakReminderEnabled,
+    breakPreferences: settings?.breakPreferences || null,
   };
+};
+
+/**
+ * Generate suggestion for moderate load based on user preferences
+ */
+const getModerateSuggestion = (settings, hardTaskStreak, taskSwitches) => {
+  const breakPrefs = settings?.breakPreferences;
+  const breakDuration = breakPrefs?.breakDuration || 10;
+  const breakReminderEnabled = settings?.cognitiveLoad?.enableBreakReminders ?? settings?.breakPreferences?.enableBreakReminders ?? true;
+
+  if (hardTaskStreak >= 2) {
+    return "You're doing well. Consider avoiding new hard tasks for now.";
+  }
+  if (taskSwitches >= 3) {
+    return "You're switching tasks frequently. Try to focus on one thing for a bit.";
+  }
+  if (!breakReminderEnabled) {
+    return 'Your workload is moderate. Stay focused and take a short pause when it feels right.';
+  }
+  return `Remember to take a ${breakDuration}-minute break soon to stay fresh.`;
+};
+
+/**
+ * Generate detailed suggestion for overloaded state based on preferences
+ */
+const getOverloadedSuggestion = (settings) => {
+  if (!settings) return 'Take a 5-10 minute break or switch to an easy task.';
+  
+  const breakPrefs = settings.breakPreferences;
+  const breakDuration = breakPrefs?.breakDuration || 10;
+  const breakActivities = breakPrefs?.suggestedBreakActivities || ['stretch', 'walk'];
+  const breakReminderEnabled = settings?.cognitiveLoad?.enableBreakReminders ?? settings?.breakPreferences?.enableBreakReminders ?? true;
+
+  if (!breakReminderEnabled) {
+    return 'Your workload is overloaded. Consider switching to a simpler task or taking a short pause when convenient.';
+  }
+  
+  const activities = breakActivities.slice(0, 2).join(' or ');
+  return `Take a ${breakDuration}-minute break to ${activities}. Or switch to a simpler task.`;
 };
 
 /**
@@ -323,6 +421,7 @@ export const updateSuggestionResponse = async (req, res, next) => {
 
 /**
  * Get or update user cognitive load settings
+ * Now returns comprehensive user settings
  */
 export const getUserSettings = async (req, res, next) => {
   try {
@@ -330,6 +429,7 @@ export const getUserSettings = async (req, res, next) => {
     let settings = await UserSettings.findOne({ userId });
 
     if (!settings) {
+      // Create default settings for new user
       settings = await UserSettings.create({ userId });
     }
 
@@ -342,19 +442,31 @@ export const getUserSettings = async (req, res, next) => {
   }
 };
 
+/**
+ * Update user settings
+ * Supports partial updates across all categories using dot notation paths
+ */
 export const updateUserSettings = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { cognitiveLoadSensitivity, notificationPaused, autoAdjustEnabled } = req.body;
+    const updates = req.body;
+
+    // Support nested updates using MongoDB's dot notation
+    // Example: { "cognitiveLoad.sensitivity": 1.2 }
+    const updateObj = {};
+    
+    if (updates && typeof updates === 'object') {
+      Object.keys(updates).forEach(key => {
+        if (updates[key] !== undefined) {
+          updateObj[key] = updates[key];
+        }
+      });
+    }
 
     const settings = await UserSettings.findOneAndUpdate(
       { userId },
-      {
-        ...(cognitiveLoadSensitivity !== undefined && { cognitiveLoadSensitivity }),
-        ...(notificationPaused !== undefined && { notificationPaused }),
-        ...(autoAdjustEnabled !== undefined && { autoAdjustEnabled }),
-      },
-      { new: true, upsert: true }
+      { $set: updateObj },
+      { new: true, upsert: true, runValidators: true }
     );
 
     res.status(200).json({

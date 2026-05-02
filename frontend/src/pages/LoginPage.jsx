@@ -25,14 +25,16 @@ function LoginPage() {
 
     try {
       const response = await api.post('/auth/login', { email, password });
-      if (response.success) {
-        dispatch(loginSuccess(response.data));
+      const result = response.data;
+
+      if (result?.success) {
+        dispatch(loginSuccess(result.data));
         navigate('/dashboard');
       } else {
-        dispatch(loginFailure(response.message || 'Login failed'));
+        dispatch(loginFailure(result?.message || 'Login failed'));
       }
     } catch (err) {
-      dispatch(loginFailure(err.message || 'Login failed. Please check your credentials.'));
+      dispatch(loginFailure(err.response?.data?.message || err.message || 'Login failed. Please check your credentials.'));
     } finally {
       setLoadingState(false);
     }

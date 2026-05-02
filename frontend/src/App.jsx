@@ -6,9 +6,9 @@ import DashboardPage from './pages/DashboardPage';
 import TaskListPage from './pages/TaskListPage';
 import TaskFormPage from './pages/TaskFormPage';
 import CalendarPage from './pages/CalendarPage';
+import SettingsPage from './pages/SettingsPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-import CognitiveLoadIndicator from './components/CognitiveLoadIndicator';
 
 function App() {
   return (
@@ -30,10 +30,9 @@ function App() {
           <Route path="tasks/new" element={<TaskFormPage />} />
           <Route path="tasks/edit/:id" element={<TaskFormPage />} />
           <Route path="calendar" element={<CalendarPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
-      {/* Cognitive Load Indicator - shows on all protected routes */}
-      <CognitiveLoadIndicator />
     </>
   );
 }
