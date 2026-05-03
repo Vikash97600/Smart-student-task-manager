@@ -24,15 +24,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle error responses
     if (error.response) {
       // Server responded with error status
-      return Promise.reject(error.response.data);
+      const serverMsg = error.response.data?.message || error.response.statusText;
+      return Promise.reject({ 
+        message: `Server error ${error.response.status}: ${serverMsg}`,
+        status: error.response.status 
+      });
     } else if (error.request) {
-      // Request made but no response
-      return Promise.reject({ message: 'Network error. Please check your connection.' });
+      return Promise.reject({ 
+        message: 'Network error - server not responding. Is backend running? (cd backend && npm run dev)' 
+      });
     } else {
-      // Something else went wrong
       return Promise.reject({ message: error.message });
     }
   }
@@ -125,7 +128,6 @@ export const taskService = {
 };
 
 export const settingsService = {
-  // Get all user settings (full nested object)
   getAllSettings: async () => {
     try {
       const response = await api.get('/settings');
@@ -134,8 +136,6 @@ export const settingsService = {
       throw error;
     }
   },
-
-  // Get flattened settings summary for UI components
   getSummary: async () => {
     try {
       const response = await api.get('/settings/summary');
@@ -144,8 +144,6 @@ export const settingsService = {
       throw error;
     }
   },
-
-  // Update user settings (supports nested updates)
   update: async (settingsData) => {
     try {
       const response = await api.put('/settings', settingsData);
@@ -154,8 +152,6 @@ export const settingsService = {
       throw error;
     }
   },
-
-  // Update specific nested field
   updateField: async (category, field, value) => {
     try {
       const response = await api.put('/settings', { [`${category}.${field}`]: value });
@@ -164,8 +160,6 @@ export const settingsService = {
       throw error;
     }
   },
-
-  // Reset all settings to defaults
   reset: async () => {
     try {
       const response = await api.delete('/settings/reset');
@@ -238,4 +232,75 @@ export const userService = {
   },
 };
 
+export const reportService = {
+  getReportBlob: async () => {
+    try {
+      console.log('[ReportService] Fetching report blob...');
+      const response = await api.get('/report', {
+        responseType: 'blob',
+      });
+
+      const blob = response.data;
+      if (!blob || blob.size === 0) {
+        throw new Error('Empty PDF response from server');
+      }
+
+      console.log(`[ReportService] PDF blob received: ${blob.size} bytes`);
+
+      const contentDisposition = response.headers['content-disposition'] || '';
+      let filename = `progress-report-${Date.now()}.pdf`;
+      const filenameMatch = contentDisposition.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, '').trim());
+      }
+
+      return { blob, filename, size: blob.size };
+    } catch (error) {
+      console.error('[ReportService] Blob fetch failed:', error);
+      let msg = 'Failed to generate PDF';
+      if (error.status) msg += ` (HTTP ${error.status})`;
+      if (error.message) msg += `: ${error.message}`;
+      throw { message: msg, originalError: error };
+    }
+  },
+
+  downloadReport: async () => {
+    try {
+      const { blob, filename } = await reportService.getReportBlob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      console.log(`[ReportService] Download triggered: ${filename}`);
+      return filename;
+    } catch (error) {
+      console.error('[ReportService] Download failed:', error);
+      throw error;
+    }
+  },
+
+  getShareableReport: async () => {
+    try {
+      const response = await api.get('/report/share');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  generateReportBlob: async () => {
+    try {
+      const { blob } = await reportService.getReportBlob();
+      return blob;
+    } catch (error) {
+      throw error;
+    }
+  }
+};
+
 export default api;
+

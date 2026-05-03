@@ -34,6 +34,7 @@ function Layout() {
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/tasks', label: 'Tasks', icon: '📋' },
     { path: '/calendar', label: 'Calendar', icon: '📅' },
+    { path: '/report', label: 'Report', icon: '📄' },
     { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
