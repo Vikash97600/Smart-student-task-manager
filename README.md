@@ -212,7 +212,7 @@ npm run build
 
 1. Start MongoDB (if using local):
 ```bash
-mongod
+mongod --dbpath=./data
 ```
 
 2. Start backend server:
