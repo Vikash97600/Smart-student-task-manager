@@ -1,43 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchSettings, updateSettings, resetSettings } from '../context/settingsSlice';
+import { fetchSettings, resetSettings, updateSettings } from '../context/settingsSlice';
 
-function SettingsPage() {
+export default function SettingsPage() {
   const dispatch = useDispatch();
-  const { settings, flatSettings, loading, initialized } = useSelector((state) => state.settings);
+  const { flatSettings, loading, initialized } = useSelector((state) => state.settings);
   const { isAuthenticated } = useSelector((state) => state.auth);
-  
-  const [activeSection, setActiveSection] = useState('ui');
+
+  const [activeTab, setActiveTab] = useState('notifications');
   const [successMessage, setSuccessMessage] = useState('');
   const [resetConfirm, setResetConfirm] = useState(false);
 
-  // Fetch settings on mount
   useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(fetchSettings());
-    }
+    if (isAuthenticated) dispatch(fetchSettings());
   }, [isAuthenticated, dispatch]);
 
-  // Show success message transient
   const showSuccess = (message) => {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  // Handle section-based updates
   const handleSectionChange = async (section, field, value) => {
     const updateKey = `${section}.${field}`;
-    console.log('[SettingsPage] Updating setting:', updateKey, value);
-
     try {
       await dispatch(updateSettings({ [updateKey]: value })).unwrap();
-      showSuccess(`${getSectionLabel(section)} setting updated`);
+      showSuccess('Setting updated');
     } catch (error) {
       showSuccess(error?.message || 'Error updating setting');
     }
   };
 
-  // Reset all settings
   const handleReset = async () => {
     try {
       await dispatch(resetSettings()).unwrap();
@@ -49,87 +42,73 @@ function SettingsPage() {
     }
   };
 
-  // Helper to get display label for section
-  const getSectionLabel = (section) => {
-    const labels = {
-      notifications: 'Notifications',
-      ui: 'UI & Appearance',
-    };
-    return labels[section] || section;
-  };
+  const tabs = [
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'ui', label: 'Appearance', icon: '🎨' },
+  ];
 
   if (!initialized && loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="spinner"></div>
+        <div className="spinner spinner-lg" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Settings</h1>
-        <p className="text-gray-600">
-          Customize your task manager experience
-        </p>
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Settings</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Customize your experience</p>
       </div>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg animate-fade-in">
-          {successMessage}
-        </div>
-      )}
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="mb-5 p-3.5 rounded-xl flex items-center gap-2.5 text-sm"
+            style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', color: '#4ade80' }}>
+            <span>✅</span><span>{successMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Sidebar Navigation */}
-        <nav className="md:w-64 flex-shrink-0">
-          <ul className="space-y-2">
-            {[
-              { id: 'notifications', label: 'Notifications', icon: '🔔' },
-              { id: 'ui', label: 'UI & Appearance', icon: '🎨' },
-            ].map((section) => (
-              <li key={section.id}>
-                <button
-                  onClick={() => setActiveSection(section.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
-                    activeSection === section.id
-                      ? 'bg-blue-100 text-blue-700 font-medium'
-                      : 'hover:bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  <span className="text-xl">{section.icon}</span>
-                  <span>{section.label}</span>
-                </button>
-              </li>
+        {/* Sidebar Tabs */}
+        <nav className="md:w-52 shrink-0">
+          <div className="glass rounded-2xl p-2">
+            {tabs.map((tab) => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-blue-500/10 text-blue-500'
+                    : 'hover:bg-gray-500/5'
+                }`}
+                style={{ color: activeTab === tab.id ? undefined : 'var(--text-secondary)' }}>
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
             ))}
-          </ul>
+          </div>
 
           {/* Reset Button */}
-          <div className="mt-8 pt-6 border-t">
+          <div className="mt-6 glass rounded-2xl p-4">
             {!resetConfirm ? (
-              <button
-                onClick={() => setResetConfirm(true)}
-                className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
-              >
+              <button onClick={() => setResetConfirm(true)}
+                className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{ border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', background: 'rgba(239,68,68,0.05)' }}>
                 Reset to Defaults
               </button>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs text-red-600">Are you sure?</p>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleReset}
-                    className="flex-1 px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition"
-                  >
+                <p className="text-xs text-red-400">Are you sure? This cannot be undone.</p>
+                <div className="flex gap-2">
+                  <button onClick={handleReset}
+                    className="flex-1 px-3 py-2 rounded-xl text-xs font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">
                     Yes, Reset
                   </button>
-                  <button
-                    onClick={() => setResetConfirm(false)}
-                    className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300 transition"
-                  >
+                  <button onClick={() => setResetConfirm(false)}
+                    className="flex-1 px-3 py-2 rounded-xl text-xs font-medium hover:bg-gray-500/10 transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}>
                     Cancel
                   </button>
                 </div>
@@ -138,263 +117,172 @@ function SettingsPage() {
           </div>
         </nav>
 
-        {/* Main Content Area */}
+        {/* Main Content */}
         <main className="flex-1">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-            
-            {/* Notifications Section */}
-            {activeSection === 'notifications' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800 mb-1">Notifications</h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Control how and when you receive alerts
-                  </p>
-                </div>
-
-                {/* Push Notifications Toggle */}
-                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <motion.div key={activeTab} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}>
+            <div className="glass rounded-2xl p-6 lg:p-8">
+              {/* Notifications Tab */}
+              {activeTab === 'notifications' && (
+                <div className="space-y-6">
                   <div>
-                    <div className="font-medium text-gray-800">Push Notifications</div>
-                    <div className="text-xs text-gray-500">In-app alerts and reminders</div>
+                    <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Notifications</h2>
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Control how you receive alerts</p>
                   </div>
-                  <input
-                    type="checkbox"
+
+                  <ToggleSetting label="Push Notifications" description="In-app alerts and reminders"
                     checked={flatSettings.pushNotifications}
-                    onChange={(e) => handleSectionChange('notifications', 'pushNotifications', e.target.checked)}
-                    className="h-6 w-11 rounded-full cursor-pointer accent-blue-600"
-                  />
-                </label>
+                    onChange={(v) => handleSectionChange('notifications', 'pushNotifications', v)} />
 
-                {/* Email Notifications Toggle */}
-                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-gray-800">Email Notifications</div>
-                    <div className="text-xs text-gray-500">Receive updates via email</div>
-                  </div>
-                  <input
-                    type="checkbox"
+                  <ToggleSetting label="Email Notifications" description="Receive updates via email"
                     checked={flatSettings.emailNotifications}
-                    onChange={(e) => handleSectionChange('notifications', 'emailNotifications', e.target.checked)}
-                    className="h-6 w-11 rounded-full cursor-pointer accent-blue-600"
-                  />
-                </label>
+                    onChange={(v) => handleSectionChange('notifications', 'emailNotifications', v)} />
 
-                {/* Notification Frequency */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notification Frequency
-                  </label>
-                  <select
-                    value={flatSettings.notificationFrequency}
-                    onChange={(e) => handleSectionChange('notifications', 'frequency', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="immediate">Immediate</option>
-                    <option value="batched">Batched (Every 15 min)</option>
-                    <option value="hourly-digest">Hourly Digest</option>
-                    <option value="daily-digest">Daily Digest</option>
-                  </select>
-                </div>
-
-                {/* Do Not Disturb */}
-                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
-                    <div className="font-medium text-gray-800">Do Not Disturb</div>
-                    <div className="text-xs text-gray-500">Disable all notifications temporarily</div>
+                    <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Notification Frequency</label>
+                    <select value={flatSettings.notificationFrequency}
+                      onChange={(e) => handleSectionChange('notifications', 'frequency', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl text-sm input-focus-ring"
+                      style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }}>
+                      <option value="immediate">Immediate</option>
+                      <option value="batched">Batched (Every 15 min)</option>
+                      <option value="hourly-digest">Hourly Digest</option>
+                      <option value="daily-digest">Daily Digest</option>
+                    </select>
                   </div>
-                  <input
-                    type="checkbox"
+
+                  <ToggleSetting label="Do Not Disturb" description="Disable all notifications temporarily"
                     checked={flatSettings.doNotDisturb}
-                    onChange={(e) => handleSectionChange('notifications', 'doNotDisturb', e.target.checked)}
-                    className="h-6 w-11 rounded-full cursor-pointer accent-blue-600"
-                  />
-                </label>
+                    onChange={(v) => handleSectionChange('notifications', 'doNotDisturb', v)} />
 
-                {/* Quiet Hours (only if push notifications enabled) */}
-                {flatSettings.pushNotifications && !flatSettings.doNotDisturb && (
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Quiet Hours Start
-                      </label>
-                      <input
-                        type="time"
-                        value={flatSettings.quietHoursStart}
-                        onChange={(e) => handleSectionChange('notifications', 'quietHoursStart', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg"
-                      />
+                  {flatSettings.pushNotifications && !flatSettings.doNotDisturb && (
+                    <div className="grid grid-cols-2 gap-4 p-4 rounded-xl" style={{ background: 'rgba(148,163,184,0.06)' }}>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Quiet Hours Start</label>
+                        <input type="time" value={flatSettings.quietHoursStart}
+                          onChange={(e) => handleSectionChange('notifications', 'quietHoursStart', e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg text-sm input-focus-ring"
+                          style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Quiet Hours End</label>
+                        <input type="time" value={flatSettings.quietHoursEnd}
+                          onChange={(e) => handleSectionChange('notifications', 'quietHoursEnd', e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg text-sm input-focus-ring"
+                          style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }} />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Quiet Hours End
-                      </label>
-                      <input
-                        type="time"
-                        value={flatSettings.quietHoursEnd}
-                        onChange={(e) => handleSectionChange('notifications', 'quietHoursEnd', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg"
-                      />
+                  )}
+                </div>
+              )}
+
+              {/* UI & Appearance Tab */}
+              {activeTab === 'ui' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Appearance</h2>
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Personalize the look and feel</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Color Theme</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: 'light', label: 'Light', icon: '☀️' },
+                        { value: 'dark', label: 'Dark', icon: '🌙' },
+                        { value: 'auto', label: 'Auto', icon: '🔄' },
+                      ].map((option) => (
+                        <button key={option.value}
+                          onClick={() => handleSectionChange('ui', 'theme', option.value)}
+                          className={`p-4 rounded-xl text-center transition-all ${
+                            flatSettings.theme === option.value
+                              ? 'ring-2 ring-blue-500 bg-blue-500/10'
+                              : 'hover:bg-gray-500/5'
+                          }`}
+                          style={{ border: `1px solid ${flatSettings.theme === option.value ? 'rgba(59,130,246,0.3)' : 'rgba(148,163,184,0.15)'}` }}>
+                          <div className="text-2xl mb-1">{option.icon}</div>
+                          <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{option.label}</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* UI & Appearance Section */}
-            {activeSection === 'ui' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800 mb-1">UI & Appearance</h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Personalize the look and feel of the app
-                  </p>
-                </div>
-
-                {/* Theme */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color Theme
-                  </label>
-                  <div className="flex gap-3">
-                    {[
-                      { value: 'light', label: 'Light', icon: '☀️' },
-                      { value: 'dark', label: 'Dark', icon: '🌙' },
-                      { value: 'auto', label: 'Auto', icon: '🔄' },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => handleSectionChange('ui', 'theme', option.value)}
-                        className={`flex-1 p-4 border rounded-lg transition-all ${
-                          flatSettings.theme === option.value
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 hover:border-blue-300'
-                        }`}
-                      >
-                        <div className="text-2xl mb-1">{option.icon}</div>
-                        <div className="text-sm font-medium">{option.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Color Scheme */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Accent Color
-                  </label>
-                  <div className="flex gap-3">
-                    {[
-                      { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
-                      { value: 'green', label: 'Green', class: 'bg-green-500' },
-                      { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
-                      { value: 'rose', label: 'Rose', class: 'bg-rose-500' },
-                    ].map((color) => (
-                      <button
-                        key={color.value}
-                        onClick={() => {
-                          // Update CSS custom properties
-                          const root = document.documentElement;
-                          const colorMap = {
-                            blue: { primary: '#3b82f6', ring: '#2563eb', light: '#dbeafe' },
-                            green: { primary: '#10b981', ring: '#059669', light: '#d1fae5' },
-                            purple: { primary: '#8b5cf6', ring: '#7c3aed', light: '#ede9fe' },
-                            rose: { primary: '#f43f5e', ring: '#e11d48', light: '#ffe4e6' },
-                          };
-                          if (colorMap[color.value]) {
-                            root.style.setProperty('--color-primary', colorMap[color.value].primary);
-                            root.style.setProperty('--color-primary-ring', colorMap[color.value].ring);
-                            root.style.setProperty('--color-primary-light', colorMap[color.value].light);
-                          }
-                          handleSectionChange('ui', 'colorScheme', color.value);
-                        }}
-                        className={`flex-1 p-4 border rounded-lg transition-all ${
-                          flatSettings.colorScheme === color.value
-                            ? 'border-blue-500 ring-2 ring-blue-200'
-                            : 'border-gray-200 hover:border-blue-300'
-                        }`}
-                      >
-                        <div className={`w-full h-8 rounded mb-2 ${color.class}`}></div>
-                        <div className="text-sm font-medium text-gray-700">{color.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Font Size */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Font Size
-                  </label>
-                  <div className="flex gap-2">
-                    {[
-                      { value: 'small', label: 'Small', class: 'text-sm' },
-                      { value: 'medium', label: 'Medium', class: 'text-base' },
-                      { value: 'large', label: 'Large', class: 'text-lg' },
-                    ].map((size) => (
-                      <button
-                        key={size.value}
-                        onClick={() => handleSectionChange('ui', 'fontSize', size.value)}
-                        className={`flex-1 p-3 border rounded-lg transition-all ${
-                          flatSettings.fontSize === size.value
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 hover:border-blue-300'
-                        } ${size.class}`}
-                      >
-                        <div className="font-medium">Aa</div>
-                        <div className="text-xs mt-1">{size.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Animations Toggle */}
-                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
-                    <div className="font-medium text-gray-800">Enable Animations</div>
-                    <div className="text-xs text-gray-500">Smooth transitions and visual effects</div>
+                    <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Accent Color</label>
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
+                        { value: 'green', label: 'Green', class: 'bg-green-500' },
+                        { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
+                        { value: 'rose', label: 'Rose', class: 'bg-rose-500' },
+                      ].map((color) => {
+                        const isActive = flatSettings.colorScheme === color.value;
+                        return (
+                          <button key={color.value}
+                            onClick={() => handleSectionChange('ui', 'colorScheme', color.value)}
+                            className={`p-4 rounded-xl text-center transition-all ${
+                              isActive ? 'ring-2 ring-blue-500' : 'hover:bg-gray-500/5'
+                            }`}
+                            style={{ border: `1px solid ${isActive ? 'rgba(59,130,246,0.3)' : 'rgba(148,163,184,0.15)'}` }}>
+                            <div className={`w-full h-8 rounded-lg mb-1 ${color.class} ${isActive ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-gray-900' : ''}`} />
+                            <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{color.label}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleSectionChange('ui', 'animationsEnabled', !flatSettings.animationsEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      flatSettings.animationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        flatSettings.animationsEnabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </label>
 
-                {/* Compact Mode Toggle */}
-                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
-                    <div className="font-medium text-gray-800">Compact Mode</div>
-                    <div className="text-xs text-gray-500">Denser UI layout with less spacing</div>
+                    <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Font Size</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: 'small', label: 'Small', preview: 'Aa', size: 'text-xs' },
+                        { value: 'medium', label: 'Medium', preview: 'Aa', size: 'text-sm' },
+                        { value: 'large', label: 'Large', preview: 'Aa', size: 'text-base' },
+                      ].map((size) => (
+                        <button key={size.value}
+                          onClick={() => handleSectionChange('ui', 'fontSize', size.value)}
+                          className={`p-4 rounded-xl text-center transition-all ${
+                            flatSettings.fontSize === size.value
+                              ? 'ring-2 ring-blue-500 bg-blue-500/10'
+                              : 'hover:bg-gray-500/5'
+                          }`}
+                          style={{ border: `1px solid ${flatSettings.fontSize === size.value ? 'rgba(59,130,246,0.3)' : 'rgba(148,163,184,0.15)'}` }}>
+                          <div className={`font-bold mb-1 ${size.size}`} style={{ color: 'var(--text-primary)' }}>{size.preview}</div>
+                          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{size.label}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleSectionChange('ui', 'compactMode', !flatSettings.compactMode)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      flatSettings.compactMode ? 'bg-blue-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        flatSettings.compactMode ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </label>
 
-              </div>
-            )}
-          </div>
+                  <ToggleSetting label="Enable Animations" description="Smooth transitions and visual effects"
+                    checked={flatSettings.animationsEnabled}
+                    onChange={(v) => handleSectionChange('ui', 'animationsEnabled', v)} />
+
+                  <ToggleSetting label="Compact Mode" description="Denser UI layout with less spacing"
+                    checked={flatSettings.compactMode}
+                    onChange={(v) => handleSectionChange('ui', 'compactMode', v)} />
+                </div>
+              )}
+            </div>
+          </motion.div>
         </main>
       </div>
     </div>
   );
 }
 
-export default SettingsPage;
+function ToggleSetting({ label, description, checked, onChange }) {
+  return (
+    <label className="flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all hover:bg-gray-500/5"
+      style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid rgba(148,163,184,0.1)' }}>
+      <div>
+        <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</div>
+        <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{description}</div>
+      </div>
+      <button type="button" onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+      </button>
+    </label>
+  );
+}

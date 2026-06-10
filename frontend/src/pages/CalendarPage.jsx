@@ -1,28 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { fetchTasks } from '../context/taskSlice';
 
-function CalendarPage() {
+export default function CalendarPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { tasks, loading } = useSelector((state) => state.tasks);
   const { isAuthenticated } = useSelector((state) => state.auth);
   const [date, setDate] = useState(new Date());
   const [selectedDateTasks, setSelectedDateTasks] = useState([]);
-  const [animateIn, setAnimateIn] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(fetchTasks());
-    }
-    setTimeout(() => setAnimateIn(true), 100);
+    if (isAuthenticated) dispatch(fetchTasks());
   }, [dispatch, isAuthenticated]);
 
   useEffect(() => {
-    // Filter tasks for the selected date
     const filtered = tasks.filter((task) => {
       if (!task.dueDate) return false;
       const taskDate = new Date(task.dueDate);
@@ -36,169 +32,159 @@ function CalendarPage() {
     setSelectedDateTasks(filtered);
   }, [date, tasks]);
 
-  const getTileContent = ({ date, view }) => {
+  const getTileContent = ({ date: tileDate, view }) => {
     if (view === 'month') {
       const dayTasks = tasks.filter((task) => {
         if (!task.dueDate) return false;
-        const taskDate = new Date(task.dueDate);
-        return (
-          taskDate.getDate() === date.getDate() &&
-          taskDate.getMonth() === date.getMonth() &&
-          taskDate.getFullYear() === date.getFullYear()
-        );
+        const td = new Date(task.dueDate);
+        return td.getDate() === tileDate.getDate() && td.getMonth() === tileDate.getMonth() && td.getFullYear() === tileDate.getFullYear();
       });
-
       if (dayTasks.length > 0) {
+        const hasOverdue = dayTasks.some((t) => t.status === 'Pending' && new Date(t.dueDate) < new Date());
+        const allCompleted = dayTasks.every((t) => t.status === 'Completed');
         return (
-          <div className="flex justify-center mt-1">
-            <span className="text-xs bg-blue-500 text-white px-1.5 rounded-full shadow">
+          <div className="flex justify-center mt-0.5">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+              hasOverdue ? 'bg-red-500 text-white' : allCompleted ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+            }`}>
               {dayTasks.length}
             </span>
           </div>
         );
       }
     }
+    return null;
   };
 
-  const getTileClassName = ({ date, view }) => {
+  const getTileClassName = ({ date: tileDate, view }) => {
     if (view === 'month') {
       const dayTasks = tasks.filter((task) => {
         if (!task.dueDate) return false;
-        const taskDate = new Date(task.dueDate);
-        return (
-          taskDate.getDate() === date.getDate() &&
-          taskDate.getMonth() === date.getMonth() &&
-          taskDate.getFullYear() === date.getFullYear()
-        );
+        const td = new Date(task.dueDate);
+        return td.getDate() === tileDate.getDate() && td.getMonth() === tileDate.getMonth() && td.getFullYear() === tileDate.getFullYear();
       });
+      if (dayTasks.length > 0) {
+        const hasOverdue = dayTasks.some((t) => t.status === 'Pending' && new Date(t.dueDate) < new Date());
+        const allCompleted = dayTasks.every((t) => t.status === 'Completed');
+        if (hasOverdue) return 'calendar-tile-overdue';
+        if (allCompleted) return 'calendar-tile-completed';
+        return 'calendar-tile-has-tasks';
+      }
+    }
+    return '';
+  };
 
-      const hasOverdue = dayTasks.some(
-        (task) =>
-          task.status === 'Pending' && new Date(task.dueDate) < new Date()
-      );
-      const allCompleted = dayTasks.length > 0 &&
-        dayTasks.every((task) => task.status === 'Completed');
-
-      if (hasOverdue) return 'bg-red-100 rounded-full border-2 border-red-400';
-      if (allCompleted) return 'bg-green-100 rounded-full border-2 border-green-400';
-      if (dayTasks.length > 0) return 'bg-blue-100 rounded-full border-2 border-blue-400';
+  const isOverdue = (task) => task.status === 'Pending' && new Date(task.dueDate) < new Date();
+  const getPriorityStyle = (p) => {
+    switch (p) {
+      case 'High': return { dot: '#ef4444', bg: 'rgba(239,68,68,0.08)', text: '#ef4444' };
+      case 'Medium': return { dot: '#eab308', bg: 'rgba(234,179,8,0.08)', text: '#eab308' };
+      case 'Low': return { dot: '#3b82f6', bg: 'rgba(59,130,246,0.08)', text: '#3b82f6' };
+      default: return { dot: '#94a3b8', bg: 'rgba(148,163,184,0.08)', text: '#94a3b8' };
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`transition-all duration-500 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">📅 Calendar View</h1>
-        <p className="text-gray-500 mt-1">Click on a date to see tasks</p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Calendar</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Click a date to see your tasks</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar */}
-        <div className="lg:col-span-2">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20">
-            <Calendar
-              onChange={setDate}
-              value={date}
-              tileContent={getTileContent}
-              tileClassName={getTileClassName}
-              className="w-full border-none"
-            />
-          </div>
+        <div className="lg:col-span-2 glass rounded-2xl p-6">
+          <Calendar
+            onChange={setDate}
+            value={date}
+            tileContent={getTileContent}
+            tileClassName={getTileClassName}
+            className="w-full border-none"
+          />
         </div>
 
         {/* Selected Date Tasks */}
         <div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              📋 Tasks for {date.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+          <div className="glass rounded-2xl p-6">
+            <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+              📅 {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </h2>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>
+              {selectedDateTasks.length} {selectedDateTasks.length === 1 ? 'task' : 'tasks'}
+            </p>
 
             {selectedDateTasks.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-5xl mb-3">📭</div>
-                <p className="text-gray-500">No tasks for this date</p>
-                <button 
-                  onClick={() => navigate('/tasks/new')}
-                  className="mt-4 btn-primary px-4 py-2 text-white rounded-lg text-sm"
-                >
+              <div className="text-center py-10">
+                <div className="text-3xl mb-2">📭</div>
+                <p className="text-sm mb-4" style={{ color: 'var(--text-tertiary)' }}>No tasks for this date</p>
+                <button onClick={() => navigate('/tasks/new')}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-500/25">
                   + Create Task
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {selectedDateTasks.map((task) => (
-                  <div
-                    key={task._id}
-                    className={`p-4 rounded-xl border-2 transition-all duration-200 hover:scale-[1.02] cursor-pointer ${
-                      task.status === 'Completed'
-                        ? 'bg-green-50 border-green-200 hover:border-green-400'
-                        : new Date(task.dueDate) < new Date()
-                        ? 'bg-red-50 border-red-200 hover:border-red-400'
-                        : 'bg-blue-50 border-blue-200 hover:border-blue-400'
-                    }`}
-                    onClick={() => navigate(`/tasks/edit/${task._id}`)}
-                  >
-                    <h3 className="font-semibold text-gray-900">{task.title}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      📚 {task.subject}
-                    </p>
-                    <div className="flex items-center justify-between mt-3">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          task.priority === 'High'
-                            ? 'bg-red-100 text-red-700'
-                            : task.priority === 'Medium'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-green-100 text-green-700'
-                        }`}
-                      >
-                        {task.priority === 'High' ? '🔴' : task.priority === 'Medium' ? '🟡' : '🟢'} {task.priority}
-                      </span>
-                      <span
-                        className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          task.status === 'Completed'
-                            ? 'bg-green-200 text-green-700'
-                            : 'bg-yellow-200 text-yellow-700'
-                        }`}
-                      >
-                        {task.status === 'Completed' ? '✅' : '⏳'} {task.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                {selectedDateTasks.map((task) => {
+                  const ps = getPriorityStyle(task.priority);
+                  return (
+                    <motion.div
+                      key={task._id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      whileHover={{ x: 3 }}
+                      onClick={() => navigate(`/tasks/edit/${task._id}`)}
+                      className="p-3 rounded-xl cursor-pointer transition-all"
+                      style={{
+                        background: isOverdue(task) ? 'rgba(239,68,68,0.06)' : task.status === 'Completed' ? 'rgba(34,197,94,0.06)' : 'rgba(59,130,246,0.04)',
+                        border: `1px solid ${
+                          isOverdue(task) ? 'rgba(239,68,68,0.15)' : task.status === 'Completed' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.1)'
+                        }`,
+                      }}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: ps.dot }} />
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`text-sm font-medium ${task.status === 'Completed' ? 'line-through opacity-60' : ''}`}
+                            style={{ color: 'var(--text-primary)' }}>
+                            {task.title}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>
+                              {task.subject}
+                            </span>
+                            <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: ps.bg, color: ps.text }}>
+                              {task.priority}
+                            </span>
+                            <span className={`text-[11px] ${task.status === 'Completed' ? 'text-green-500' : isOverdue(task) ? 'text-red-500' : ''}`}
+                              style={{ color: task.status === 'Completed' || isOverdue(task) ? undefined : 'var(--text-tertiary)' }}>
+                              {task.status === 'Completed' ? '✅ Done' : isOverdue(task) ? '⚠️ Overdue' : '⏳ Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* Legend */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 mt-4 border border-white/20">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">🎨 Legend</h3>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 bg-blue-400 rounded-full border-2 border-blue-600 flex items-center justify-center text-white text-xs font-bold">2</div>
-                <span className="text-sm text-gray-600">Has tasks</span>
+          <div className="glass rounded-2xl p-5 mt-4">
+            <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Legend</h3>
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-3">
+                <span className="w-5 h-5 rounded bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">2</span>
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Has tasks</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 bg-green-400 rounded-full border-2 border-green-600"></div>
-                <span className="text-sm text-gray-600">All tasks completed</span>
+              <div className="flex items-center gap-3">
+                <span className="w-5 h-5 rounded bg-green-500" />
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>All completed</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-6 h-6 bg-red-400 rounded-full border-2 border-red-600"></div>
-                <span className="text-sm text-gray-600">Overdue tasks</span>
+              <div className="flex items-center gap-3">
+                <span className="w-5 h-5 rounded bg-red-500" />
+                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Overdue tasks</span>
               </div>
             </div>
           </div>
@@ -207,5 +193,3 @@ function CalendarPage() {
     </div>
   );
 }
-
-export default CalendarPage;

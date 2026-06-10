@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
-import { fetchTasks, deleteTaskAsync, fetchStats, updateTaskAsync, fetchDeletedTasks, restoreTaskAsync, permanentDeleteTaskAsync, permanentDeleteMultipleTasksAsync } from '../context/taskSlice';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { deleteTaskAsync, fetchDeletedTasks, fetchStats, fetchTasks, permanentDeleteMultipleTasksAsync, permanentDeleteTaskAsync, restoreTaskAsync, updateTaskAsync } from '../context/taskSlice';
+import EmptyState from '../components/ui/EmptyState';
+import Modal from '../components/ui/Modal';
+import SearchBar from '../components/ui/SearchBar';
+import { TableSkeleton, TaskCardSkeleton } from '../components/ui/SkeletonLoader';
 
-function TaskListPage() {
+export default function TaskListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { tasks, deletedTasks, loading, error } = useSelector((state) => state.tasks);
@@ -13,8 +18,10 @@ function TaskListPage() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [subjectFilter, setSubjectFilter] = useState('');
   const [search, setSearch] = useState('');
-  const [animateIn, setAnimateIn] = useState(false);
   const [selectedDeletedTasks, setSelectedDeletedTasks] = useState([]);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -22,18 +29,19 @@ function TaskListPage() {
       dispatch(fetchDeletedTasks());
       dispatch(fetchStats());
     }
-    // Trigger animation after mount
-    setTimeout(() => setAnimateIn(true), 100);
   }, [dispatch, isAuthenticated]);
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
+  const handleDelete = (id) => {
+    setConfirmDelete(id);
+  };
+
+  const confirmDeleteAction = async () => {
+    if (confirmDelete) {
       try {
-        dispatch(deleteTaskAsync(id));
+        dispatch(deleteTaskAsync(confirmDelete));
         dispatch(fetchStats());
-      } catch (err) {
-        console.error('Delete error:', err);
-      }
+      } catch (err) { console.error('Delete error:', err); }
+      setConfirmDelete(null);
     }
   };
 
@@ -42,59 +50,38 @@ function TaskListPage() {
     try {
       dispatch(updateTaskAsync({ id: task._id, taskData: { ...task, status: newStatus } }));
       dispatch(fetchStats());
-    } catch (err) {
-      console.error('Update error:', err);
-    }
+    } catch (err) { console.error('Update error:', err); }
   };
 
   const handleRestore = async (id) => {
     try {
       await dispatch(restoreTaskAsync(id));
       dispatch(fetchStats());
-    } catch (err) {
-      console.error('Restore error:', err);
-    }
+    } catch (err) { console.error('Restore error:', err); }
   };
 
   const handlePermanentDelete = async (id) => {
-    if (window.confirm('Are you sure you want to permanently delete this task? This action cannot be undone.')) {
-      try {
-        await dispatch(permanentDeleteTaskAsync(id));
-        dispatch(fetchStats());
-      } catch (err) {
-        console.error('Permanent delete error:', err);
-      }
-    }
-  };
-
-  const handleCheckboxChange = (taskId) => {
-    setSelectedDeletedTasks(prev => 
-      prev.includes(taskId) 
-        ? prev.filter(id => id !== taskId)
-        : [...prev, taskId]
-    );
+    try {
+      await dispatch(permanentDeleteTaskAsync(id));
+      dispatch(fetchStats());
+    } catch (err) { console.error('Permanent delete error:', err); }
   };
 
   const handleSelectAll = () => {
     if (selectedDeletedTasks.length === deletedTasks.length) {
       setSelectedDeletedTasks([]);
     } else {
-      setSelectedDeletedTasks(deletedTasks.map(task => task._id));
+      setSelectedDeletedTasks(deletedTasks.map((t) => t._id));
     }
   };
 
   const handleBulkPermanentDelete = async () => {
     if (selectedDeletedTasks.length === 0) return;
-    
-    if (window.confirm(`Are you sure you want to permanently delete ${selectedDeletedTasks.length} task(s)? This action cannot be undone.`)) {
-      try {
-        await dispatch(permanentDeleteMultipleTasksAsync(selectedDeletedTasks));
-        setSelectedDeletedTasks([]);
-        dispatch(fetchStats());
-      } catch (err) {
-        console.error('Bulk permanent delete error:', err);
-      }
-    }
+    try {
+      await dispatch(permanentDeleteMultipleTasksAsync(selectedDeletedTasks));
+      setSelectedDeletedTasks([]);
+      dispatch(fetchStats());
+    } catch (err) { console.error('Bulk permanent delete error:', err); }
   };
 
   const filteredTasks = tasks.filter((task) => {
@@ -105,283 +92,311 @@ function TaskListPage() {
     return matchesSearch && matchesStatus && matchesSubject && matchesPriority;
   });
 
-  const subjects = [...new Set(tasks.map((task) => task.subject))];
+  const subjects = [...new Set(tasks.map((t) => t.subject))];
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
+  const isOverdue = (task) => task.status === 'Pending' && new Date(task.dueDate) < new Date();
+  const getDaysUntilDue = (task) => {
+    const diff = Math.ceil((new Date(task.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+    return diff;
+  };
+
+  const getPriorityColor = (p) => {
+    switch (p) {
+      case 'High': return { bg: 'rgba(239,68,68,0.1)', text: '#ef4444', border: 'rgba(239,68,68,0.2)', dot: '#ef4444' };
+      case 'Medium': return { bg: 'rgba(234,179,8,0.1)', text: '#eab308', border: 'rgba(234,179,8,0.2)', dot: '#eab308' };
+      case 'Low': return { bg: 'rgba(59,130,246,0.1)', text: '#3b82f6', border: 'rgba(59,130,246,0.2)', dot: '#3b82f6' };
+      default: return { bg: 'rgba(148,163,184,0.1)', text: '#94a3b8', border: 'rgba(148,163,184,0.2)', dot: '#94a3b8' };
+    }
+  };
+
+  if (loading && tasks.length === 0) return <TableSkeleton rows={6} />;
 
   return (
-    <div className={`transition-all duration-500 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Tasks</h1>
-          <p className="text-gray-500 mt-1">{filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'} found</p>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Tasks</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+            {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+            {statusFilter && <span> · {statusFilter}</span>}
+          </p>
         </div>
-        <Link
-          to="/tasks/new"
-          className="btn-primary px-6 py-3 text-white rounded-xl font-medium flex items-center space-x-2 shadow-lg shadow-blue-500/30"
-        >
-          <span className="text-xl">+</span>
-          <span>Add New Task</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* View toggle */}
+          <div className="flex glass rounded-xl p-1">
+            <button onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg text-sm transition-all ${viewMode === 'list' ? 'bg-blue-500/10 text-blue-500' : 'text-gray-400 hover:text-gray-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+            </button>
+            <button onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg text-sm transition-all ${viewMode === 'grid' ? 'bg-blue-500/10 text-blue-500' : 'text-gray-400 hover:text-gray-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>
+            </button>
+          </div>
+          <Link to="/tasks/new"
+            className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all inline-flex items-center gap-2">
+            <span className="text-lg leading-none">+</span> New Task
+          </Link>
+        </div>
       </div>
 
-      {/* Filters Card */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 mb-6 border border-white/20">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-            <input
-              type="text"
-              placeholder="Search tasks..."
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          
-          {/* Status Filter */}
-          <select
-            className="px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">📋 All Status</option>
-            <option value="Pending">⏳ Pending</option>
-            <option value="Completed">✅ Completed</option>
+      {/* Filters */}
+      <div className="glass rounded-2xl p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search tasks..." />
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+            className="glass rounded-xl px-4 py-2.5 text-sm input-focus-ring" style={{ color: 'var(--text-primary)' }}>
+            <option value="">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
           </select>
-          
-          {/* Priority Filter */}
-          <select
-            className="px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="">🎯 All Priorities</option>
-            <option value="High">🔴 High</option>
-            <option value="Medium">🟡 Medium</option>
-            <option value="Low">🟢 Low</option>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}
+            className="glass rounded-xl px-4 py-2.5 text-sm input-focus-ring" style={{ color: 'var(--text-primary)' }}>
+            <option value="">All Priorities</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
           </select>
-          
-          {/* Subject Filter */}
-          <select
-            className="px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50"
-            value={subjectFilter}
-            onChange={(e) => setSubjectFilter(e.target.value)}
-          >
-            <option value="">📚 All Subjects</option>
-            {subjects.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
-              </option>
-            ))}
+          <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}
+            className="glass rounded-xl px-4 py-2.5 text-sm input-focus-ring" style={{ color: 'var(--text-primary)' }}>
+            <option value="">All Subjects</option>
+            {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Task List */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-white/20">
-        {filteredTasks.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="text-6xl mb-4">📋</div>
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">No tasks found</h3>
-            <p className="text-gray-400 mb-4">Try adjusting your filters or create a new task</p>
-            <Link
-              to="/tasks/new"
-              className="btn-primary px-6 py-2 text-white rounded-lg inline-block"
-            >
-              Create Task
-            </Link>
-          </div>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  📝 Task
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  📚 Subject
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  📅 Due Date
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  🎯 Priority
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  ✅ Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  ⚡ Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredTasks.map((task, index) => (
-                <tr 
-                  key={task._id} 
-                  className="table-row-hover"
-                  style={{ animationDelay: `${index * 50}ms` }}
+      {/* Task List/Grid */}
+      {filteredTasks.length === 0 ? (
+        <EmptyState icon="📋" title="No tasks found"
+          description={search || statusFilter || filter || subjectFilter ? 'Try adjusting your filters' : 'Get started by creating your first task'}
+          action={search || statusFilter || filter || subjectFilter ? undefined : () => navigate('/tasks/new')}
+          actionText="Create Task" />
+      ) : viewMode === 'list' ? (
+        <div className="glass rounded-2xl overflow-hidden">
+          <div className="divide-y divide-gray-100/50 dark:divide-gray-700/20">
+            {filteredTasks.map((task, index) => {
+              const pc = getPriorityColor(task.priority);
+              const days = getDaysUntilDue(task);
+              return (
+                <motion.div
+                  key={task._id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="p-4 hover:bg-blue-500/5 transition-colors"
                 >
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-semibold text-gray-900">{task.title}</div>
-                    <div className="text-sm text-gray-500 truncate max-w-xs">{task.description}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                      {task.subject}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <span>📅</span>
-                      <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold status-badge ${
-                        task.priority === 'High'
-                          ? 'bg-red-100 text-red-700 border border-red-200'
-                          : task.priority === 'Medium'
-                          ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                          : 'bg-green-100 text-green-700 border border-green-200'
-                      }`}
-                    >
-                      {task.priority === 'High' ? '🔴' : task.priority === 'Medium' ? '🟡' : '🟢'} {task.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleStatusToggle(task)}
-                      className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 hover:scale-110 ${
+                  <div className="flex items-start gap-4">
+                    {/* Checkbox */}
+                    <button onClick={() => handleStatusToggle(task)}
+                      className={`w-5 h-5 rounded-md mt-0.5 shrink-0 flex items-center justify-center border-2 transition-all ${
                         task.status === 'Completed'
-                          ? 'bg-green-100 text-green-700 border-2 border-green-300 hover:bg-green-200'
-                          : 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300 hover:bg-yellow-200'
-                      }`}
-                    >
-                      {task.status === 'Completed' ? '✅' : '⏳'} {task.status}
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                      }`}>
+                      {task.status === 'Completed' && (
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      )}
                     </button>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => navigate(`/tasks/edit/${task._id}`)}
-                        className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-all duration-200 flex items-center space-x-1"
-                      >
-                        <span>✏️</span>
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(task._id)}
-                        className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-all duration-200 flex items-center space-x-1"
-                      >
-                        <span>🗑️</span>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
 
-      <div className="mt-10 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-800">Recently Deleted</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {deletedTasks.length} {deletedTasks.length === 1 ? 'task' : 'tasks'} in recently deleted
-            </p>
-          </div>
-          {deletedTasks.length > 0 && (
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={selectedDeletedTasks.length === deletedTasks.length && deletedTasks.length > 0}
-                  onChange={handleSelectAll}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                Select All
-              </label>
-              {selectedDeletedTasks.length > 0 && (
-                <button
-                  onClick={handleBulkPermanentDelete}
-                  className="px-4 py-2 bg-red-600 text-white rounded-full text-sm font-semibold hover:bg-red-700 transition flex items-center gap-2"
-                >
-                  <span>🗑️</span>
-                  <span>Delete Selected ({selectedDeletedTasks.length})</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {deletedTasks.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-500">
-            No recently deleted tasks yet. Deleted tasks will appear here so you can restore them.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {deletedTasks.map((task) => (
-              <div key={task._id} className="rounded-3xl border border-gray-200 p-4 bg-gray-50">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedDeletedTasks.includes(task._id)}
-                      onChange={() => handleCheckboxChange(task._id)}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                    />
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">{task.title}</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Deleted at {new Date(task.deletedAt).toLocaleString()}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className={`text-sm font-semibold ${task.status === 'Completed' ? 'line-through opacity-50' : ''}`}
+                          style={{ color: 'var(--text-primary)' }}>
+                          {task.title}
+                        </h3>
+                        {/* Priority dot */}
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: pc.dot }} />
                       </div>
-                      <div className="mt-2 text-sm text-gray-600">
-                        <span className="mr-2">📚 {task.subject}</span>
-                        <span className="mr-2">📅 {new Date(task.dueDate).toLocaleDateString()}</span>
-                        <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
+                      {task.description && (
+                        <p className="text-xs mt-0.5 truncate max-w-lg" style={{ color: 'var(--text-tertiary)' }}>
+                          {task.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
+                          {task.subject}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium" style={{ background: pc.bg, color: pc.text }}>
                           {task.priority}
+                        </span>
+                        <span className={`text-[11px] flex items-center gap-1 ${isOverdue(task) ? 'text-red-500' : ''}`} style={{ color: isOverdue(task) ? undefined : 'var(--text-tertiary)' }}>
+                          📅 {new Date(task.dueDate).toLocaleDateString()}
+                          {days > 0 && days <= 3 && <span className="text-yellow-500">({days}d left)</span>}
+                          {isOverdue(task) && <span className="text-red-500">(Overdue)</span>}
                         </span>
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate(`/tasks/edit/${task._id}`)}
+                        className="p-2 rounded-lg hover:bg-gray-500/10 transition-colors text-sm"
+                        style={{ color: 'var(--text-tertiary)' }} title="Edit">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      </motion.button>
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                        onClick={() => handleDelete(task._id)}
+                        className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-sm text-red-400" title="Delete">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </motion.button>
+                    </div>
                   </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        /* Grid View */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredTasks.map((task, index) => {
+            const pc = getPriorityColor(task.priority);
+            const days = getDaysUntilDue(task);
+            const completionPercent = task.status === 'Completed' ? 100 : 0;
+            return (
+              <motion.div
+                key={task._id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className="glass rounded-xl p-4 hover:shadow-glass-hover transition-all group"
+              >
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRestore(task._id)}
-                      className="px-4 py-2 rounded-full bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition"
-                    >
-                      Restore
+                    <button onClick={() => handleStatusToggle(task)}
+                      className={`w-4 h-4 rounded mt-0.5 shrink-0 flex items-center justify-center border-2 transition-all ${
+                        task.status === 'Completed' ? 'bg-green-500 border-green-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}>
+                      {task.status === 'Completed' && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handlePermanentDelete(task._id)}
-                      className="px-4 py-2 rounded-full bg-red-100 text-red-600 text-sm font-semibold hover:bg-red-200 transition"
-                    >
-                      Delete Permanently
-                    </button>
+                    <h3 className={`text-sm font-semibold ${task.status === 'Completed' ? 'line-through opacity-50' : ''}`}
+                      style={{ color: 'var(--text-primary)' }}>
+                      {task.title}
+                    </h3>
+                  </div>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: pc.dot }} />
+                </div>
+
+                {task.description && (
+                  <p className="text-xs mb-2 line-clamp-2" style={{ color: 'var(--text-tertiary)' }}>{task.description}</p>
+                )}
+
+                <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
+                    {task.subject}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: pc.bg, color: pc.text }}>
+                    {task.priority}
+                  </span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                    {new Date(task.dueDate).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full h-1.5 rounded-full mb-3" style={{ background: 'rgba(148,163,184,0.1)' }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completionPercent}%` }}
+                    transition={{ duration: 0.5 }}
+                    className="h-1.5 rounded-full bg-gradient-to-r from-green-400 to-green-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1">
+                    <button onClick={() => navigate(`/tasks/edit/${task._id}`)}
+                      className="p-1.5 rounded-lg hover:bg-blue-500/10 text-blue-400 text-xs">Edit</button>
+                    <button onClick={() => handleDelete(task._id)}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400 text-xs">Delete</button>
+                  </div>
+                  <span className={`text-[10px] ${isOverdue(task) ? 'text-red-500' : ''}`} style={{ color: isOverdue(task) ? undefined : 'var(--text-tertiary)' }}>
+                    {isOverdue(task) ? '⚠️ Overdue' : days === 0 ? 'Due today' : days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Recently Deleted */}
+      {deletedTasks.length > 0 && (
+        <div className="mt-8">
+          <button onClick={() => setShowDeleted(!showDeleted)}
+            className="flex items-center gap-2 text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
+            <span>🗑️ Recently Deleted ({deletedTasks.length})</span>
+            <svg className={`w-3.5 h-3.5 transition-transform ${showDeleted ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <AnimatePresence>
+            {showDeleted && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                className="glass rounded-2xl overflow-hidden">
+                <div className="p-4 border-b border-gray-200/20 dark:border-gray-700/30 flex items-center justify-between">
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    Select tasks to permanently delete
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      <input type="checkbox" checked={selectedDeletedTasks.length === deletedTasks.length && deletedTasks.length > 0}
+                        onChange={handleSelectAll} className="rounded" />
+                      Select All
+                    </label>
+                    {selectedDeletedTasks.length > 0 && (
+                      <button onClick={handleBulkPermanentDelete}
+                        className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors">
+                        Delete ({selectedDeletedTasks.length})
+                      </button>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                <div className="divide-y divide-gray-100/50 dark:divide-gray-700/20">
+                  {deletedTasks.map((task) => (
+                    <div key={task._id} className="p-4 flex items-center gap-3">
+                      <input type="checkbox" checked={selectedDeletedTasks.includes(task._id)}
+                        onChange={() => {
+                          setSelectedDeletedTasks((prev) =>
+                            prev.includes(task._id) ? prev.filter((id) => id !== task._id) : [...prev, task._id]
+                          );
+                        }} className="rounded shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{task.title}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                          📚 {task.subject} · 📅 {new Date(task.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button onClick={() => handleRestore(task._id)}
+                          className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 transition-colors">Restore</button>
+                        <button onClick={() => handlePermanentDelete(task._id)}
+                          className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-colors">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={confirmDelete !== null} onClose={() => setConfirmDelete(null)} title="Delete Task" size="sm">
+        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+          Are you sure you want to delete this task? It will be moved to recently deleted.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button onClick={() => setConfirmDelete(null)}
+            className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-500/10 transition-colors"
+            style={{ color: 'var(--text-secondary)' }}>Cancel</button>
+          <button onClick={confirmDeleteAction}
+            className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors">Delete</button>
+        </div>
+      </Modal>
     </div>
   );
 }
-
-export default TaskListPage;

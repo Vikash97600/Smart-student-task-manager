@@ -1,28 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { createTask, updateTaskAsync } from '../context/taskSlice';
 import api from '../services/api';
+import AnimatedButton from '../components/ui/AnimatedButton';
 
-function TaskFormPage() {
+export default function TaskFormPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
   const [task, setTask] = useState({
-    title: '',
-    description: '',
-    subject: '',
-    dueDate: '',
-    priority: 'Medium',
-    status: 'Pending',
+    title: '', description: '', subject: '', dueDate: '', priority: 'Medium', status: 'Pending',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [animateIn, setAnimateIn] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => setAnimateIn(true), 100);
-    
     if (id) {
       const fetchTask = async () => {
         try {
@@ -43,29 +37,20 @@ function TaskFormPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setTask((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setTask((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
-      const taskData = {
-        ...task,
-        dueDate: new Date(task.dueDate).toISOString(),
-      };
-
+      const taskData = { ...task, dueDate: new Date(task.dueDate).toISOString() };
       if (id) {
         dispatch(updateTaskAsync({ id, taskData }));
       } else {
         dispatch(createTask(taskData));
       }
-
       navigate('/tasks');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save task');
@@ -74,171 +59,109 @@ function TaskFormPage() {
   };
 
   return (
-    <div className={`transition-all duration-500 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    <div className="max-w-3xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center space-x-3 mb-2">
-          <Link 
-            to="/tasks" 
-            className="text-blue-500 hover:text-blue-700 text-sm flex items-center"
-          >
-            ← Back to Tasks
-          </Link>
-        </div>
-        <h1 className="text-3xl font-bold text-gray-800">
-          {id ? '✏️ Edit Task' : '➕ Create New Task'}
+      <div className="mb-6">
+        <Link to="/tasks" className="text-sm flex items-center gap-1.5 mb-2 hover:opacity-80 transition-opacity"
+          style={{ color: 'var(--color-primary)' }}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to Tasks
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          {id ? 'Edit Task' : 'Create Task'}
         </h1>
-        <p className="text-gray-500 mt-1">
-          {id ? 'Update task details below' : 'Fill in the details to create a new task'}
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+          {id ? 'Update the details of your task' : 'Add a new task to your list'}
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 flex items-center">
-          <span className="mr-2">⚠️</span>
-          {error}
-        </div>
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-5 p-3.5 rounded-xl flex items-start gap-2.5 text-sm"
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5' }}>
+          <span>⚠️</span><span>{error}</span>
+        </motion.div>
       )}
 
-      {/* Form Card */}
-      <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-white/20">
-        <div className="space-y-6">
+      <motion.form
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        onSubmit={handleSubmit}
+        className="glass rounded-2xl p-6 lg:p-8"
+      >
+        <div className="space-y-5">
           {/* Title */}
           <div>
-            <label htmlFor="title" className="block text-sm font-semibold text-gray-700 mb-2">
-              📝 Title *
-            </label>
-            <input
-              id="title"
-              type="text"
-              name="title"
-              value={task.title}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-              placeholder="Enter task title"
-            />
+            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Title *</label>
+            <input type="text" name="title" value={task.title} onChange={handleChange} required
+              className="w-full px-4 py-3 rounded-xl text-sm input-focus-ring"
+              style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }}
+              placeholder="Enter task title" />
           </div>
 
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
-              📄 Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              value={task.description}
-              onChange={handleChange}
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 resize-none"
-              placeholder="Enter task description (optional)"
-            ></textarea>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Description</label>
+            <textarea name="description" value={task.description} onChange={handleChange} rows={3}
+              className="w-full px-4 py-3 rounded-xl text-sm input-focus-ring resize-none"
+              style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }}
+              placeholder="Optional task description" />
           </div>
 
           {/* Subject */}
           <div>
-            <label htmlFor="subject" className="block text-sm font-semibold text-gray-700 mb-2">
-              📚 Subject *
-            </label>
-            <input
-              id="subject"
-              type="text"
-              name="subject"
-              value={task.subject}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-              placeholder="e.g., Math, Physics, English, History"
-            />
+            <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Subject *</label>
+            <input type="text" name="subject" value={task.subject} onChange={handleChange} required
+              className="w-full px-4 py-3 rounded-xl text-sm input-focus-ring"
+              style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }}
+              placeholder="e.g., Math, Physics, History" />
           </div>
 
           {/* Due Date & Priority */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="dueDate" className="block text-sm font-semibold text-gray-700 mb-2">
-                📅 Due Date *
-              </label>
-              <input
-                id="dueDate"
-                type="date"
-                name="dueDate"
-                value={task.dueDate}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-              />
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Due Date *</label>
+              <input type="date" name="dueDate" value={task.dueDate} onChange={handleChange} required
+                className="w-full px-4 py-3 rounded-xl text-sm input-focus-ring"
+                style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }} />
             </div>
-
             <div>
-              <label htmlFor="priority" className="block text-sm font-semibold text-gray-700 mb-2">
-                🎯 Priority
-              </label>
-              <select
-                id="priority"
-                name="priority"
-                value={task.priority}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-              >
-                <option value="High">🔴 High</option>
-                <option value="Medium">🟡 Medium</option>
-                <option value="Low">🟢 Low</option>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Priority</label>
+              <select name="priority" value={task.priority} onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl text-sm input-focus-ring"
+                style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }}>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
               </select>
             </div>
           </div>
 
-          {/* Status (only for edit) */}
+          {/* Status (edit only) */}
           {id && (
             <div>
-              <label htmlFor="status" className="block text-sm font-semibold text-gray-700 mb-2">
-                ✅ Status
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={task.status}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-              >
-                <option value="Pending">⏳ Pending</option>
-                <option value="Completed">✅ Completed</option>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Status</label>
+              <select name="status" value={task.status} onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl text-sm input-focus-ring"
+                style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.15)', color: 'var(--text-primary)' }}>
+                <option value="Pending">Pending</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={() => navigate('/tasks')}
-            className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all duration-200 flex items-center space-x-2"
-          >
-            <span>🚪</span>
-            <span>Cancel</span>
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary px-6 py-3 text-white rounded-xl font-medium flex items-center space-x-2 shadow-lg shadow-blue-500/30 disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <div className="spinner w-5 h-5"></div>
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <span>{id ? '💾' : '✨'}</span>
-                <span>{id ? 'Update Task' : 'Create Task'}</span>
-              </>
-            )}
-          </button>
+        {/* Actions */}
+        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200/20 dark:border-gray-700/30">
+          <AnimatedButton variant="secondary" onClick={() => navigate('/tasks')}>
+            Cancel
+          </AnimatedButton>
+          <AnimatedButton type="submit" loading={loading} icon={id ? '💾' : '✨'}>
+            {id ? 'Update Task' : 'Create Task'}
+          </AnimatedButton>
         </div>
-      </form>
+      </motion.form>
     </div>
   );
 }
-
-export default TaskFormPage;

@@ -1,66 +1,45 @@
-import React, { useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, Filler, LinearScale, Legend, Title, Tooltip } from 'chart.js';
 import { fetchStats } from '../context/taskSlice';
+import ProgressRing from '../components/ui/ProgressRing';
+import StatCard from '../components/ui/StatCard';
+import { DashboardSkeleton } from '../components/ui/SkeletonLoader';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
-function DashboardPage() {
+export default function DashboardPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { stats, loading, error } = useSelector((state) => state.tasks);
   const { isAuthenticated } = useSelector((state) => state.auth);
-  const [animatedStats, setAnimatedStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    pendingTasks: 0,
-    overdueTasks: 0,
-    productivityPercentage: 0
-  });
+  const [animatedStats, setAnimatedStats] = useState({ totalTasks: 0, completedTasks: 0, pendingTasks: 0, overdueTasks: 0, productivityPercentage: 0 });
   const [animateIn, setAnimateIn] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(fetchStats());
-    }
+    if (isAuthenticated) dispatch(fetchStats());
     setTimeout(() => setAnimateIn(true), 100);
   }, [dispatch, isAuthenticated]);
 
-  // Animate stats counting
   useEffect(() => {
     if (stats) {
       const duration = 1000;
       const steps = 20;
       const interval = duration / steps;
-      
       let step = 0;
       const timer = setInterval(() => {
         step++;
+        const f = step / steps;
         setAnimatedStats({
-          totalTasks: Math.round((stats.totalTasks || 0) * (step / steps)),
-          completedTasks: Math.round((stats.completedTasks || 0) * (step / steps)),
-          pendingTasks: Math.round((stats.pendingTasks || 0) * (step / steps)),
-          overdueTasks: Math.round((stats.overdueTasks || 0) * (step / steps)),
-          productivityPercentage: Math.round((stats.productivityPercentage || 0) * (step / steps))
+          totalTasks: Math.round((stats.totalTasks || 0) * f),
+          completedTasks: Math.round((stats.completedTasks || 0) * f),
+          pendingTasks: Math.round((stats.pendingTasks || 0) * f),
+          overdueTasks: Math.round((stats.overdueTasks || 0) * f),
+          productivityPercentage: Math.round((stats.productivityPercentage || 0) * f),
         });
-        
         if (step >= steps) {
           clearInterval(timer);
           setAnimatedStats({
@@ -68,205 +47,186 @@ function DashboardPage() {
             completedTasks: stats.completedTasks || 0,
             pendingTasks: stats.pendingTasks || 0,
             overdueTasks: stats.overdueTasks || 0,
-            productivityPercentage: stats.productivityPercentage || 0
+            productivityPercentage: stats.productivityPercentage || 0,
           });
         }
       }, interval);
-
       return () => clearInterval(timer);
     }
   }, [stats]);
 
   const handleCardClick = (filter) => {
-    // Navigate to task list with filter query params
-    if (filter === 'total') {
-      navigate('/tasks');
-    } else if (filter === 'completed') {
-      navigate('/tasks?status=Completed');
-    } else if (filter === 'pending') {
-      navigate('/tasks?status=Pending');
-    } else if (filter === 'overdue') {
-      navigate('/tasks?overdue=true');
-    }
+    if (filter === 'total') navigate('/tasks');
+    else if (filter === 'completed') navigate('/tasks?status=Completed');
+    else if (filter === 'pending') navigate('/tasks?status=Pending');
+    else if (filter === 'overdue') navigate('/tasks?overdue=true');
   };
 
-  const StatCard = ({ title, value, color, filter, icon, gradient }) => (
-    <div 
-      onClick={() => handleCardClick(filter)}
-      className={`card-hover bg-white/80 backdrop-blur-sm rounded-2xl p-6 cursor-pointer border border-white/20 shadow-lg hover:shadow-xl relative overflow-hidden group`}
-      style={{ animationDelay: `${filter === 'total' ? 0 : filter === 'completed' ? 100 : filter === 'pending' ? 200 : 300}ms` }}
-    >
-      {/* Background decoration */}
-      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${gradient}`}></div>
-      
-      <div className="flex items-center justify-between relative z-10">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{title}</h3>
-          <p className="text-4xl font-bold mt-3" style={{ 
-            color: color.includes('blue') ? '#2563eb' : color.includes('green') ? '#16a34a' : color.includes('yellow') ? '#ca8a04' : '#dc2626'
-          }}>
-            {value}
-          </p>
-        </div>
-        <div className="text-5xl transform group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300">
-          {icon}
-        </div>
-      </div>
-      <div className="mt-4 text-sm text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 relative z-10">
-        Click to view →
-      </div>
-    </div>
-  );
+  if (loading && !stats) return <DashboardSkeleton />;
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
+  const completionRate = stats?.totalTasks ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0;
+
+  const weeklyLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weeklyData = {
+    labels: weeklyLabels,
+    datasets: [{
+      label: 'Completed',
+      data: stats?.weeklyData || [0, 0, 0, 0, 0, 0, 0],
+      backgroundColor: [0, 1, 2, 3, 4, 5, 6].map((i) => `rgba(59, 130, 246, ${0.5 + i * 0.07})`),
+      borderColor: '#3b82f6',
+      borderWidth: 0,
+      borderRadius: 6,
+      borderSkipped: false,
+    }],
+  };
+
+  const doughnutData = {
+    labels: ['Completed', 'Pending', 'Overdue'],
+    datasets: [{
+      data: [stats?.completedTasks || 0, stats?.pendingTasks || 0, stats?.overdueTasks || 0],
+      backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
+      borderWidth: 0,
+      hoverOffset: 8,
+    }],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+      x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
+    },
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '72%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { padding: 16, usePointStyle: true, pointStyle: 'circle', font: { size: 12 }, color: '#94a3b8' },
+      },
+    },
+  };
+
+  const currentHour = new Date().getHours();
+  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 flex items-center">
-        <span className="mr-2">⚠️</span>
-        {error}
+      <div className="p-4 rounded-xl flex items-start gap-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5' }}>
+        <span>⚠️</span>
+        <span>{error}</span>
       </div>
     );
   }
 
-  const weeklyLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  const weeklyData = {
-    labels: weeklyLabels,
-    datasets: [
-      {
-        label: 'Tasks Completed',
-        data: stats?.weeklyData || [0, 0, 0, 0, 0, 0, 0],
-        backgroundColor: 'rgba(59, 130, 246, 0.8)',
-        borderColor: '#3b82f6',
-        borderWidth: 2,
-        borderRadius: 8,
-        hoverBackgroundColor: '#2563eb',
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          font: {
-            size: 14,
-            weight: 'bold'
-          }
-        }
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          stepSize: 1,
-          font: {
-            size: 12
-          }
-        },
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)'
-        }
-      },
-      x: {
-        grid: {
-          display: false
-        },
-        ticks: {
-          font: {
-            size: 12
-          }
-        }
-      }
-    }
-  };
-
   return (
-    <div className={`transition-all duration-500 ${animateIn ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">📊 Dashboard</h1>
-        <p className="text-gray-500 mt-1">Track your progress and stay productive</p>
-      </div>
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          title="Total Tasks" 
-          value={animatedStats.totalTasks} 
-          color="border-blue-500"
-          filter="total"
-          icon="📋"
-          gradient="bg-gradient-to-br from-blue-50 to-blue-100"
-        />
-        <StatCard 
-          title="Completed" 
-          value={animatedStats.completedTasks} 
-          color="border-green-500"
-          filter="completed"
-          icon="✅"
-          gradient="bg-gradient-to-br from-green-50 to-green-100"
-        />
-        <StatCard 
-          title="Pending" 
-          value={animatedStats.pendingTasks} 
-          color="border-yellow-500"
-          filter="pending"
-          icon="⏳"
-          gradient="bg-gradient-to-br from-yellow-50 to-yellow-100"
-        />
-        <StatCard 
-          title="Overdue" 
-          value={animatedStats.overdueTasks} 
-          color="border-red-500"
-          filter="overdue"
-          icon="⚠️"
-          gradient="bg-gradient-to-br from-red-50 to-red-100"
-        />
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+        <h1 className="text-2xl lg:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          {greeting}! 👋
+        </h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
+          Here's your productivity overview for today
+        </p>
+      </motion.div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard title="Total Tasks" value={animatedStats.totalTasks} icon="📋" filter="total" onClick={() => handleCardClick('total')} color="blue" delay={0} />
+        <StatCard title="Completed" value={animatedStats.completedTasks} icon="✅" filter="completed" onClick={() => handleCardClick('completed')} color="green" delay={1} />
+        <StatCard title="Pending" value={animatedStats.pendingTasks} icon="⏳" filter="pending" onClick={() => handleCardClick('pending')} color="yellow" delay={2} />
+        <StatCard title="Overdue" value={animatedStats.overdueTasks} icon="⚠️" filter="overdue" onClick={() => handleCardClick('overdue')} color="red" delay={3} />
       </div>
 
-      {/* Productivity */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 mb-8 border border-white/20">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-800">📈 Productivity</h3>
-          {stats?.streak > 0 && (
-            <div className="flex items-center space-x-2 bg-orange-50 px-3 py-1.5 rounded-full">
-              <span className="text-2xl">🔥</span>
-              <span className="font-bold text-orange-600">{stats.streak} day streak!</span>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Weekly Progress Chart */}
+        <div className="lg:col-span-2 glass rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Weekly Progress</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Tasks completed per day</p>
             </div>
-          )}
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-            <div 
-              className="progress-bar-animated h-6 rounded-full"
-              style={{ width: `${animatedStats.productivityPercentage}%` }}
-            ></div>
+            {stats?.streak > 0 && (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.5, type: 'spring' }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{ background: 'rgba(249,115,22,0.1)', color: '#f97316' }}>
+                <span>🔥</span> {stats.streak} day streak
+              </motion.div>
+            )}
           </div>
-          <span className="text-3xl font-bold text-blue-600">{animatedStats.productivityPercentage}%</span>
+          <div className="h-64">
+            <Bar data={weeklyData} options={chartOptions} />
+          </div>
+        </div>
+
+        {/* Task Distribution */}
+        <div className="glass rounded-2xl p-6">
+          <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Task Distribution</h3>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>Status breakdown</p>
+          <div className="h-52 flex items-center justify-center">
+            {stats?.totalTasks > 0 ? (
+              <Doughnut data={doughnutData} options={doughnutOptions} />
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No data yet</p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Weekly Chart */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">📊 Weekly Progress</h3>
-        <div className="h-80">
-          <Bar data={weeklyData} options={options} />
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Productivity Score */}
+        <div className="glass rounded-2xl p-6 flex flex-col items-center justify-center">
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Productivity Score</h3>
+          <ProgressRing percentage={animatedStats.productivityPercentage} size={130} strokeWidth={10}
+            color={animatedStats.productivityPercentage > 70 ? '#22c55e' : animatedStats.productivityPercentage > 40 ? '#eab308' : '#ef4444'} label="Overall" />
+        </div>
+
+        {/* Completion Rate */}
+        <div className="glass rounded-2xl p-6 flex flex-col items-center justify-center">
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Completion Rate</h3>
+          <ProgressRing percentage={completionRate} size={130} strokeWidth={10}
+            color={completionRate > 70 ? '#22c55e' : completionRate > 40 ? '#3b82f6' : '#ef4444'} label="Completed" />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="lg:col-span-2 glass rounded-2xl p-6">
+          <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/tasks/new')}
+              className="p-4 rounded-xl flex flex-col items-center gap-2 text-sm font-medium transition-all"
+              style={{ background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>
+              <span className="text-2xl">➕</span> New Task
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/tasks')}
+              className="p-4 rounded-xl flex flex-col items-center gap-2 text-sm font-medium transition-all"
+              style={{ background: 'rgba(34,197,94,0.08)', color: '#22c55e' }}>
+              <span className="text-2xl">📋</span> View Tasks
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/calendar')}
+              className="p-4 rounded-xl flex flex-col items-center gap-2 text-sm font-medium transition-all"
+              style={{ background: 'rgba(139,92,246,0.08)', color: '#8b5cf6' }}>
+              <span className="text-2xl">📅</span> Calendar
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/report')}
+              className="p-4 rounded-xl flex flex-col items-center gap-2 text-sm font-medium transition-all"
+              style={{ background: 'rgba(249,115,22,0.08)', color: '#f97316' }}>
+              <span className="text-2xl">📊</span> Reports
+            </motion.button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-export default DashboardPage;
