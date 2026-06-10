@@ -94,7 +94,7 @@ export default function ReportPage() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Back to Dashboard
         </button>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Progress Reports</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Progress Reports</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Generate PDF reports and share with others</p>
       </div>
 
@@ -109,13 +109,13 @@ export default function ReportPage() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8">
         {/* Download Card */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-6 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-3xl" style={{ background: 'rgba(59,130,246,0.1)' }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-5 sm:p-6 text-center">
+          <div className="w-14 sm:w-16 h-14 sm:h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl" style={{ background: 'rgba(59,130,246,0.1)' }}>
             📥
           </div>
-          <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Download PDF</h3>
+          <h3 className="text-base sm:text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Download PDF</h3>
           <p className="text-sm mb-6" style={{ color: 'var(--text-tertiary)' }}>Get a detailed report with charts and stats</p>
           <AnimatedButton onClick={handleDownload} loading={loading} variant="primary" size="lg" className="w-full" icon="📄">
             Download Report
@@ -123,11 +123,11 @@ export default function ReportPage() {
         </motion.div>
 
         {/* WhatsApp Card */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl p-6 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-3xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl p-5 sm:p-6 text-center">
+          <div className="w-14 sm:w-16 h-14 sm:h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl" style={{ background: 'rgba(34,197,94,0.1)' }}>
             💬
           </div>
-          <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Share on WhatsApp</h3>
+          <h3 className="text-base sm:text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Share on WhatsApp</h3>
           <p className="text-sm mb-6" style={{ color: 'var(--text-tertiary)' }}>Downloads PDF first, then opens WhatsApp</p>
           <AnimatedButton onClick={handleWhatsAppShare} loading={shareLoading} variant="success" size="lg" className="w-full" icon="📤">
             Share on WhatsApp
@@ -139,7 +139,7 @@ export default function ReportPage() {
       </div>
 
       {/* Live Preview */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-2xl p-6">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-2xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>📈 Live Preview</h3>
           <button onClick={refreshPreview}
@@ -165,7 +165,7 @@ export default function ReportPage() {
 
       {/* Troubleshooting */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-        className="mt-6 p-4 rounded-xl" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.15)' }}>
+        className="mt-6 p-3 sm:p-4 rounded-xl" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.15)' }}>
         <h4 className="text-sm font-semibold mb-2" style={{ color: '#fbbf24' }}>💡 Troubleshooting</h4>
         <ul className="text-xs space-y-1" style={{ color: '#fde68a' }}>
           <li>• No download? Check your browser Downloads folder and console (F12)</li>

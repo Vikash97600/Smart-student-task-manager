@@ -45,23 +45,23 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-4">
       {/* Animated Background */}
       <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #0b1121 0%, #1e293b 50%, #0f172a 100%)' }}>
-        <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0 opacity-20 sm:opacity-30 overflow-hidden">
           <motion.div
             animate={{ x: [0, 30, 0], y: [0, -30, 0] }}
             transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full"
+            className="absolute -top-1/4 -left-1/4 w-[50vw] sm:w-96 h-[50vw] sm:h-96 rounded-full"
             style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.3), transparent)' }}
           />
           <motion.div
             animate={{ x: [0, -40, 0], y: [0, 30, 0] }}
             transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full"
+            className="absolute -bottom-1/4 -right-1/4 w-[50vw] sm:w-96 h-[50vw] sm:h-96 rounded-full"
             style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.3), transparent)' }}
           />
           <motion.div
             animate={{ x: [0, 20, 0], y: [0, 20, 0] }}
             transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute top-1/2 right-1/3 w-64 h-64 rounded-full"
+            className="absolute top-1/2 right-1/3 w-[40vw] sm:w-64 h-[40vw] sm:h-64 rounded-full hidden sm:block"
             style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.2), transparent)' }}
           />
         </div>

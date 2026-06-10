@@ -92,9 +92,9 @@ export default function CalendarPage() {
         <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Click a date to see your tasks</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Calendar */}
-        <div className="lg:col-span-2 glass rounded-2xl p-6">
+        <div className="lg:col-span-2 glass rounded-2xl p-4 sm:p-6 overflow-x-auto">
           <Calendar
             onChange={setDate}
             value={date}

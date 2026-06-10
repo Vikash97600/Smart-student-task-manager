@@ -147,7 +147,7 @@ export default function DashboardPage() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Weekly Progress Chart */}
-        <div className="lg:col-span-2 glass rounded-2xl p-6">
+        <div className="lg:col-span-2 glass rounded-2xl p-4 sm:p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Weekly Progress</h3>
@@ -167,7 +167,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Task Distribution */}
-        <div className="glass rounded-2xl p-6">
+        <div className="glass rounded-2xl p-4 sm:p-6">
           <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Task Distribution</h3>
           <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>Status breakdown</p>
           <div className="h-52 flex items-center justify-center">
@@ -183,21 +183,19 @@ export default function DashboardPage() {
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Productivity Score */}
-        <div className="glass rounded-2xl p-6 flex flex-col items-center justify-center">
-          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Productivity Score</h3>
-          <ProgressRing percentage={animatedStats.productivityPercentage} size={130} strokeWidth={10}
+        <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center">
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Productivity Score</h3>              <ProgressRing percentage={animatedStats.productivityPercentage} size={100} strokeWidth={8}
             color={animatedStats.productivityPercentage > 70 ? '#22c55e' : animatedStats.productivityPercentage > 40 ? '#eab308' : '#ef4444'} label="Overall" />
         </div>
 
         {/* Completion Rate */}
-        <div className="glass rounded-2xl p-6 flex flex-col items-center justify-center">
-          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Completion Rate</h3>
-          <ProgressRing percentage={completionRate} size={130} strokeWidth={10}
+        <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center">
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Completion Rate</h3>              <ProgressRing percentage={completionRate} size={100} strokeWidth={8}
             color={completionRate > 70 ? '#22c55e' : completionRate > 40 ? '#3b82f6' : '#ef4444'} label="Completed" />
         </div>
 
         {/* Quick Actions */}
-        <div className="lg:col-span-2 glass rounded-2xl p-6">
+        <div className="lg:col-span-2 glass rounded-2xl p-4 sm:p-6">
           <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3">
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}

@@ -153,11 +153,11 @@ export default function TaskFormPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200/20 dark:border-gray-700/30">
-          <AnimatedButton variant="secondary" onClick={() => navigate('/tasks')}>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200/20 dark:border-gray-700/30">
+          <AnimatedButton variant="secondary" onClick={() => navigate('/tasks')} className="w-full sm:w-auto">
             Cancel
           </AnimatedButton>
-          <AnimatedButton type="submit" loading={loading} icon={id ? '💾' : '✨'}>
+          <AnimatedButton type="submit" loading={loading} icon={id ? '💾' : '✨'} className="w-full sm:w-auto">
             {id ? 'Update Task' : 'Create Task'}
           </AnimatedButton>
         </div>

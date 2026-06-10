@@ -104,7 +104,7 @@ export default function ProfileDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-2 w-80 origin-top-right glass-strong rounded-2xl overflow-hidden shadow-elevated z-50"
+            className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 origin-top-right glass-strong rounded-2xl overflow-hidden shadow-elevated z-50"
           >
             {/* Header */}
             <div className="p-5 border-b border-gray-200/20 dark:border-gray-700/30">

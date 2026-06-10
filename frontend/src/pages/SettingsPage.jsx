@@ -72,7 +72,7 @@ export default function SettingsPage() {
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="flex flex-col md:flex-row gap-4 sm:gap-6">
         {/* Sidebar Tabs */}
         <nav className="md:w-52 shrink-0">
           <div className="glass rounded-2xl p-2">
@@ -118,9 +118,9 @@ export default function SettingsPage() {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1">
+        <main className="flex-1 min-w-0">
           <motion.div key={activeTab} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}>
-            <div className="glass rounded-2xl p-6 lg:p-8">
+            <div className="glass rounded-2xl p-4 sm:p-6 lg:p-8">
               {/* Notifications Tab */}
               {activeTab === 'notifications' && (
                 <div className="space-y-6">
@@ -208,7 +208,7 @@ export default function SettingsPage() {
 
                   <div>
                     <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Accent Color</label>
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {[
                         { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
                         { value: 'green', label: 'Green', class: 'bg-green-500' },

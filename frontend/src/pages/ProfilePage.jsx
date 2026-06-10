@@ -91,7 +91,7 @@ export default function ProfilePage() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Profile Info */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 lg:p-8">
@@ -108,7 +108,7 @@ export default function ProfilePage() {
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Profile Picture</label>
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-xl overflow-hidden shrink-0">
+                  <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl shadow-xl overflow-hidden shrink-0">
                     {profileForm.avatar ? (
                       <img src={profileForm.avatar} alt="" className="w-full h-full object-cover" />
                     ) : getInitials(profileForm.name)}

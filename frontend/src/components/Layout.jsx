@@ -71,7 +71,7 @@ export default function Layout() {
   if (!isAuthenticated) return <Outlet />;
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--surface-bg)' }}>
+    <div className="min-h-screen flex w-full max-w-full overflow-hidden" style={{ background: 'var(--surface-bg)' }}>
       {/* Mobile Overlay */}
       <AnimatePresence>
         {mobileSidebarOpen && (
@@ -90,12 +90,13 @@ export default function Layout() {
         initial={false}
         animate={{ width: sidebarCollapsed ? 68 : 260 }}
         transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className={`fixed left-0 top-0 h-full z-50 flex flex-col ${sidebarCollapsed ? 'w-[68px]' : 'w-[260px]'} lg:relative`}
+        className={`fixed left-0 top-0 h-full z-50 flex flex-col ${sidebarCollapsed ? 'w-[68px]' : 'w-[260px]'} lg:relative ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
         style={{
           background: 'var(--surface-sidebar)',
           backdropFilter: 'blur(20px) saturate(1.8)',
           WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
           borderRight: '1px solid var(--surface-card-border)',
+          transition: 'width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         }}
       >
         {/* Logo */}
@@ -211,7 +212,7 @@ export default function Layout() {
       </motion.aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-hidden">
         {/* Top Navbar */}
         <header
           className="h-16 flex items-center px-4 lg:px-6 border-b border-gray-200/20 dark:border-gray-700/30 z-30 sticky top-0"
@@ -258,7 +259,7 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 overflow-auto">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 8 }}
